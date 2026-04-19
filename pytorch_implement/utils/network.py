@@ -98,7 +98,7 @@ class ContinuousPolicyHead(nn.Module):
         action = torch.tanh(z)
 
         #compute log_prob of action with change of variable 
-        log_prob = dist.log_prob(z).sum(dim = -1)
+        log_prob = dist.log_prob(z)
         log_prob = log_prob - torch.sum(torch.log(1 - action.pow(2) + 1e-6), dim = -1)
 
         return action, log_prob  
@@ -115,7 +115,7 @@ class ContinuousPolicyHead(nn.Module):
         z = torch.atanh(action.clamp(-0.999,0.999))
 
         # change of variable to compute log_prob
-        log_prob = dist.log_prob(z).sum(dim = -1)
+        log_prob = dist.log_prob(z)
         log_prob = log_prob - torch.sum(torch.log(1 - action.pow(2) + 1e-6),dim = -1)
 
         return log_prob
@@ -129,7 +129,7 @@ class ContinuousPolicyHead(nn.Module):
         mean , std = self.forward(obs_features)
         
         dist = DiagGaussianAction(mean, std)
-        entropy = dist.entropy().sum(dim = -1)
+        entropy = dist.entropy()
             
         return entropy 
 
@@ -141,7 +141,6 @@ class DiscretePolicyHead(nn.Module):
 
         self.action_dim = action_dim
         self.logits = nn.Linear(feature_dim, self.action_dim)
-
 
     def forward(self, obs_features : torch.Tensor):
         return self.logits(obs_features)
@@ -156,9 +155,10 @@ class DiscretePolicyHead(nn.Module):
         if deterministic_bool:
             action = torch.argmax(logits, dim = -1)
             return action, None
-         
+        
         action = dist.sample()
         log_prob = dist.log_prob(action)
+
         return action, log_prob
 
     def get_log_prob(self,obs_features: torch.Tensor ,action: torch.Tensor):
@@ -272,9 +272,13 @@ class ActorCriticPolicy(nn.Module):
 
         self.critic = ValueNetwork(feature_dim)
 
-        if feature_network in ['MLP', 'CNN']:
-            self.network = {'MLP': FeatureExtractorMLP(observation_space = observation_space, feature_dim= feature_dim),
-                            'CNN': FeatureExtractorCNN(observation_space = observation_space, feature_dim=feature_dim)}[feature_network]
+        if isinstance(feature_network, str):
+            if feature_network == 'MLP':
+                self.network = FeatureExtractorMLP(observation_space = observation_space, feature_dim= feature_dim)
+            elif feature_network == 'CNN':
+                self.network = FeatureExtractorCNN(observation_space = observation_space, feature_dim=feature_dim)
+            else:
+                raise ValueError("Unknown feature network")
         else:
             self.network = feature_network
             
@@ -284,18 +288,18 @@ class ActorCriticPolicy(nn.Module):
         log_prob  = self.policy.get_log_prob(obs_features,action)
         entropy = self.policy.get_entropy(obs_features)
 
-        value = self.critic(obs_features)
+        value = self.critic(obs_features).squeeze(-1)
 
         return log_prob, value, entropy
     
     def predict(self, obs: torch.Tensor,deterministic_bool = False) -> tuple:
         
         obs_features = self.network(obs)
-
+        
         action, log_prob = self.policy.sample_action(obs_features= obs_features,
                                                      deterministic_bool= deterministic_bool)
 
-        value = self.critic(obs_features)
+        value = self.critic(obs_features).squeeze(-1)
 
         return action, log_prob, value 
 

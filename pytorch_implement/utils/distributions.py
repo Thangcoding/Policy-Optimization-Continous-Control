@@ -25,10 +25,18 @@ class CategoricalAction(ActionDistribution):
         return self.dist.sample()
 
     def log_prob(self,action: torch.tensor):
-        return self.dist.log_prob(action).sum(dim = -1)
+        log_prob = self.dist.log_prob(action)
+        
+        if len(log_prob.shape) > 1:
+            log_prob = log_prob.sum(dim = -1) 
+        return log_prob
     
     def entropy(self):
-        return self.dist.entropy().sum(dim = -1)
+        entropy = self.dist.entropy()
+
+        if len(entropy.shape) > 1:
+            entropy = entropy.sum(dim = -1) 
+        return entropy
 
 
 class DiagGaussianAction(ActionDistribution):
@@ -50,10 +58,18 @@ class DiagGaussianAction(ActionDistribution):
         return self.dist.rsample() if reparam_trick_bool else self.dist.sample()
 
     def log_prob(self,action: torch.tensor):
-        return self.dist.log_prob(action).sum(dim = -1)
+        log_prob = self.dist.log_prob(action)
+        
+        if len(log_prob.shape) > 1:
+            log_prob = log_prob.sum(dim = -1) 
+        return log_prob
 
     def entropy(self):
-        return self.dist.entropy().sum(dim = -1)
+        entropy = self.dist.entropy()
+
+        if len(entropy.shape) > 1:
+            entropy = entropy.sum(dim = -1) 
+        return entropy
 
 class BernoulliAction(ActionDistribution):
     ''' 
@@ -66,10 +82,18 @@ class BernoulliAction(ActionDistribution):
         return self.dist.sample()
 
     def log_prob(self,action: torch.Tensor):
-        return self.dist.log_prob(action).sum(dim = -1)
+        log_prob = self.dist.log_prob(action)
+        
+        if len(log_prob.shape) > 1:
+            log_prob = log_prob.sum(dim = -1) 
+        return log_prob
 
     def entropy(self):
-        return self.dist.entropy().sum(dim = -1)
+        entropy = self.dist.entropy()
+
+        if len(entropy.shape) > 1:
+            entropy = entropy.sum(dim = -1) 
+        return entropy
 
 class MultiCategoricalAction(ActionDistribution):
     ''' 

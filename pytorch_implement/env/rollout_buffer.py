@@ -31,14 +31,21 @@ class RolloutBuffer:
         self.observation_space = observation_space
         self.action_space = action_space
 
-        if isinstance(action_space, spaces.Discrete):
-            self.action_dim = action_space.n
-        elif isinstance(action_space, spaces.Box):
-            self.action_dim = action_space.shape[0]
+        # compute action and observation dim 
+        self.observation_dim = self.observation_space.shape 
+
+        if isinstance(self.action_space,spaces.Box):
+            self.action_dim = self.action_space.shape[0]
+        elif isinstance(self.action_space,spaces.Discrete):
+            self.action_dim = 1
+        elif isinstance(self.action_space,spaces.MultiDiscrete):
+            self.action_dim = len(self.action_space.nvec)
+        else:
+            raise NotImplementedError("Unsupported action space")
 
         # buffer store
-        self.observation_buffer = np.zeros((buffer_size, self.num_envs, *self.observation_space.shape),self.observation_space.dtype)
-        self.action_buffer = np.zeros((buffer_size,self.num_envs,*self.action_space.action_dim), self.action_space.dtype)
+        self.observation_buffer = np.zeros((buffer_size, self.num_envs, *self.observation_dim),self.observation_space.dtype)
+        self.action_buffer = np.zeros((buffer_size,self.num_envs,self.action_dim), dtype = np.float32)
         self.reward_buffer = np.zeros((buffer_size,self.num_envs),dtype = np.float32)
         self.done_buffer = np.zeros((buffer_size, self.num_envs),dtype = np.float32)
         self.value_buffer = np.zeros((buffer_size, self.num_envs), dtype = np.float32)
@@ -51,8 +58,8 @@ class RolloutBuffer:
         
     def reset(self) -> None:
         '''reset the buffer store'''
-        self.observation_buffer = np.zeros((self.buffer_size, self.num_envs, *self.observation_space.shape),self.observation_space.dtype)
-        self.action_buffer = np.zeros((self.buffer_size,self.num_envs,*self.action_space.action_dim), self.action_space.dtype)
+        self.observation_buffer = np.zeros((self.buffer_size, self.num_envs, *self.observation_dim),self.observation_space.dtype)
+        self.action_buffer = np.zeros((self.buffer_size,self.num_envs,self.action_dim), dtype = np.float32)
         self.reward_buffer = np.zeros((self.buffer_size,self.num_envs),dtype = np.float32)
         self.done_buffer = np.zeros((self.buffer_size, self.num_envs),dtype = np.float32)
         self.value_buffer = np.zeros((self.buffer_size, self.num_envs),dtype = np.float32)
@@ -60,6 +67,7 @@ class RolloutBuffer:
         self.log_prob_buffer = np.zeros((self.buffer_size, self.num_envs), dtype = np.float32)
         self.advantage_buffer = np.zeros((self.buffer_size, self.num_envs),dtype = np.float32)
 
+        self.pos = 0
     def add(self,
             obs: np.ndarray, 
             action: np.ndarray, 
@@ -70,8 +78,22 @@ class RolloutBuffer:
         ''' 
         adding sample in rollout buffer
         '''
+
+        if isinstance(self.action_space, spaces.Discrete):
+            action = np.expand_dims(action,axis = -1).astype(np.int64)
+
+        elif isinstance(self.action_space, spaces.Box):
+            action = action.astype(np.float32)
+
+        elif isinstance(self.action_space, spaces.MultiDiscrete):
+            action = action.astype(np.int64)
+
+        else:
+            raise NotImplementedError
+    
+
         self.observation_buffer[self.pos] = obs
-        self.action_buffer[self.pos] = action 
+        self.action_buffer[self.pos] = action
         self.reward_buffer[self.pos] = reward
         self.value_buffer[self.pos] = value
         self.log_prob_buffer[self.pos] = log_prob
@@ -85,7 +107,7 @@ class RolloutBuffer:
         '''
 
         Args:
-            last_value : the value V(s_{T}) used to compute temporal different of state s_{T - 1}
+            last_value : the value V(s_{T}) used to compute temporal different of state s_{T-1}
             values (buffer_size x num_envs): the list of  V(s_{t}) for all state in rollout 
             gamma : discouted factor 
             lambda : control variance and bias 
@@ -107,16 +129,23 @@ class RolloutBuffer:
             if step == length - 1:
                 next_value = last_value 
             else:
-                next_value = self.value[step + 1]
+                next_value = self.value_buffer[step+1]*(1 - self.done_buffer[step])
 
-            curr_value = self.value[step]
-            delta = self.reward_buffer[step] + gamma*next_value*(1 - self.done_buffer[step]) - curr_value
+            curr_value = self.value_buffer[step]
+
+            delta = self.reward_buffer[step] + gamma*next_value - curr_value
+            
             gae = delta + gae_lambda*gamma*gae*(1 - self.done_buffer[step])
-
+            # test 
+            # print('----------------------')
+            #print("delta:",delta)
+            #print("done:", 1- self.done_buffer[step])
+            #print("gae:", gae)
+            #print('---------------------')
             self.advantage_buffer[step] = gae
-        
+
         self.return_buffer = self.advantage_buffer + self.value_buffer
-        
+
         return self.advantage_buffer
     
     def td_value(self):
@@ -125,8 +154,8 @@ class RolloutBuffer:
     def batch_data(self,batch_size: int = 64):
 
         # reshape to batch size 
-        observation_batch = torch.tensor(self.observation_buffer, dtype = torch.float32).reshape(-1,*self.observation_space.shape)
-        action_batch = torch.tensor(self.action_buffer, dtype = torch.float32).reshape(-1,*self.action_space.shape)
+        observation_batch = torch.tensor(self.observation_buffer, dtype = torch.float32).reshape(-1,*self.observation_dim)
+        action_batch = torch.tensor(self.action_buffer, dtype = torch.float32).reshape(-1,self.action_dim)
         return_batch = torch.tensor(self.return_buffer,dtype = torch.float32).reshape(-1)
         advantage_batch = torch.tensor(self.advantage_buffer,dtype = torch.float32).reshape(-1)
         log_prob_batch = torch.tensor(self.log_prob_buffer,dtype = torch.float32).reshape(-1) 
@@ -146,7 +175,6 @@ class RolloutBuffer:
                 "log_prob": log_prob_batch[batch_idx].to(self.device),
                 "return": return_batch[batch_idx].to(self.device),
             }
-
 
 
 if __name__ == '__main__':

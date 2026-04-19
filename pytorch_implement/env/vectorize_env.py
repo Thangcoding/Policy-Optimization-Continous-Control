@@ -44,17 +44,17 @@ class VectorEnv:
         self.action_space = self.vec_env.single_action_space
         self.observation_space = self.vec_env.single_observation_space
 
-    def step(self, actions : np.ndarray) -> tuple:
-        next_obs, rewards, terminated, truncated , infos = self.vec_env.step(actions)
+    def step(self, action : np.ndarray) -> tuple:
+        next_ob, reward, terminated, truncated , info = self.vec_env.step(action)
 
-        return next_obs, rewards, terminated, truncated, infos
+        return next_ob, reward, terminated, truncated, info
     
     def action_sample(self) -> np.ndarray[np.float32]:
         return self.vec_env.action_space.sample()
     
-    def reset(self)-> tuple:
-        obs, infos = self.vec_env.reset()
-        return obs, infos 
+    def reset(self, seed : int)-> tuple:
+        obs, info = self.vec_env.reset(seed = seed)
+        return obs, info
     
     def close(self):
         self.vec_env.close()

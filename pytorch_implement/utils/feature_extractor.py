@@ -65,7 +65,7 @@ class FeatureExtractorCNN(BaseFeatureExtractor):
                                  nn.Conv2d(32, 64, 4, stride = 2), 
                                  nn.ReLU(),
                                  nn.Conv2d(64, 64, 3, stride = 1), 
-                                 nn.Relu(), 
+                                 nn.ReLU(), 
                                  nn.Flatten())
 
         # compute flatten size output 
