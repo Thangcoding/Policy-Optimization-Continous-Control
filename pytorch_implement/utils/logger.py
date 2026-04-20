@@ -60,7 +60,7 @@ def record_video(env, policy, device, max_steps=500):
         obs_tensor = torch.tensor(obs, dtype=torch.float32).to(device)
 
         with torch.no_grad():
-            action, _, _ = policy.predict(obs_tensor)
+            action, _, _ = policy.predict(obs_tensor, deterministic_bool = True)
 
         obs, _, terminated, truncated, _ = env.step(action.cpu().numpy())
 
