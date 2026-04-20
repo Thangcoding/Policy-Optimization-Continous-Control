@@ -62,9 +62,9 @@ class OnPolicyAlgorithm:
 
             action_np = action.cpu().numpy()
 
-            next_obs, reward, terminated, truncated, _ = self.vec_env.step(action_np)
+            next_obs, reward, terminated, _, _ = self.vec_env.step(action_np)
 
-            done = (terminated | truncated).astype(np.float32) 
+            done = terminated.astype(np.float32) 
 
             self.rollout_buffer.add(
                 obs = obs,
@@ -84,7 +84,7 @@ class OnPolicyAlgorithm:
             last_value = last_value.cpu().numpy()
 
         # mask done 
-        last_value = last_value *(1 - done )
+        last_value = last_value *(1 - done)
         self.rollout_buffer.gae_and_return_value(
             last_value, self.gamma, self.gae_lambda
         )

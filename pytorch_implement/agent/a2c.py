@@ -53,6 +53,7 @@ class A2C(OnPolicyAlgorithm):
         total_policy_loss = 0 
         total_value_loss = 0 
         total_entropy = 0 
+        total_return = 0 
         mean_advantage , std_advantage = 0, 0 
         n_batches = 0
         for batch in self.rollout_buffer.batch_data(batch_size = self.batch_size): 
@@ -60,7 +61,7 @@ class A2C(OnPolicyAlgorithm):
             action = batch["action"]
             advantage_value = batch["advantage"]
             return_value = batch["return"]
-    
+
             if self.advantage_normalize:
                 # normalize advantage value 
                 advantage_value = (advantage_value - advantage_value.mean()) / (advantage_value.std() + 1e-8)
@@ -89,7 +90,8 @@ class A2C(OnPolicyAlgorithm):
             total_loss += loss.item()
             total_policy_loss += policy_loss.item()
             total_value_loss += value_loss.item()
-            total_entropy += entropy_mean.item()
+            total_entropy += -entropy_mean.item()
+            total_return += return_value.mean().item()
             mean_advantage += advantage_value.mean().item()
             std_advantage += advantage_value.std().item()
             n_batches += 1
@@ -100,6 +102,7 @@ class A2C(OnPolicyAlgorithm):
                 "policy_loss": total_policy_loss / n_batches,
                 "value_loss": total_value_loss / n_batches,
                 "entropy": total_entropy / n_batches,
+                "avd_return": total_return / n_batches,
                 "adv_mean": mean_advantage / n_batches,
                 "adv_std": std_advantage / n_batches,
             }
@@ -111,16 +114,35 @@ if __name__ == '__main__':
     env = gym.make("CartPole-v1")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
+    class feature_extract(BaseFeatureExtractor):
+
+        def __init__(self, observation_space: gym.Space, feature_dim: int, **kwargs):
+            super().__init__() 
+            self.observation_dim = observation_space.shape[0]
+            self.feature_dim = feature_dim 
+
+            self.net = nn.Sequential(nn.Linear(self.observation_dim, 32),
+                                     nn.ReLU(),
+                                     nn.Linear(32,64),
+                                     nn.ReLU(),
+                                     nn.Linear(64, feature_dim),
+                                     )
+        def forward(self, obs: torch.tensor):
+            return self.net(obs)
+        
+    net = feature_extract(observation_space= env.observation_space, feature_dim= 128)
+
     model = A2C(env = env,
                 num_envs=4,
-                feature_network='MLP',
-                feature_dim=512,
+                feature_network=net,
+                feature_dim=128,
                 device= device,
                 n_rollout_steps=50,
                 type_vector='Sync',
                 learning_rate= 1e-5,
                 gamma = 0.99,
                 gae_lambda = 0.95,
+                use_wandb=False
                 )
     
     model.learn(total_timesteps = 300)

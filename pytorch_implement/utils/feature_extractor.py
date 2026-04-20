@@ -5,7 +5,7 @@ import gymnasium as gym
 
 class BaseFeatureExtractor(nn.Module):
     
-    def __init__(self, observation_space: gym.Space, feature_dim: int, **kwargs):
+    def __init__(self, observation_space: gym.Space | None = None, feature_dim: int | None = None , **kwargs):
         super().__init__() 
         ''' 
         Base class for feature extraction network 

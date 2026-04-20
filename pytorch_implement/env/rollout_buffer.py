@@ -136,12 +136,7 @@ class RolloutBuffer:
             delta = self.reward_buffer[step] + gamma*next_value - curr_value
             
             gae = delta + gae_lambda*gamma*gae*(1 - self.done_buffer[step])
-            # test 
-            # print('----------------------')
-            #print("delta:",delta)
-            #print("done:", 1- self.done_buffer[step])
-            #print("gae:", gae)
-            #print('---------------------')
+
             self.advantage_buffer[step] = gae
 
         self.return_buffer = self.advantage_buffer + self.value_buffer
@@ -175,7 +170,6 @@ class RolloutBuffer:
                 "log_prob": log_prob_batch[batch_idx].to(self.device),
                 "return": return_batch[batch_idx].to(self.device),
             }
-
 
 if __name__ == '__main__':
     # test 

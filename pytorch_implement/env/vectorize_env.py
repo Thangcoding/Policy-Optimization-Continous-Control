@@ -1,7 +1,6 @@
 import gymnasium as gym 
 import numpy as np 
 from gymnasium.vector import SyncVectorEnv, AsyncVectorEnv
-from gymnasium.wrappers import NormalizeObservation, NormalizeReward
 
 class VectorEnv:
 
@@ -22,24 +21,17 @@ class VectorEnv:
         self.type_vector = type_vector
         self.num_envs = num_envs
 
-        def make_env(rank):
+        def make_env():
             def _init():
                 e = gym.make(self.env.spec.id)
-                e.reset(seed = rank)
                 return e 
             return _init
         
-        env_fns = [make_env(i) for i in range(self.num_envs)]
+        env_fns = [make_env() for _ in range(self.num_envs)]
         if self.type_vector == "Async":
             self.vec_env = AsyncVectorEnv(env_fns)
         else:
             self.vec_env = SyncVectorEnv(env_fns) 
-        
-        # normalize observation
-        self.vec_env = NormalizeObservation(self.vec_env)
-        
-        # normalize reward 
-        self.vec_env = NormalizeReward(self.vec_env)
         
         self.action_space = self.vec_env.single_action_space
         self.observation_space = self.vec_env.single_observation_space
@@ -52,7 +44,7 @@ class VectorEnv:
     def action_sample(self) -> np.ndarray[np.float32]:
         return self.vec_env.action_space.sample()
     
-    def reset(self, seed : int)-> tuple:
+    def reset(self, seed : int | None = None )-> tuple:
         obs, info = self.vec_env.reset(seed = seed)
         return obs, info
     
