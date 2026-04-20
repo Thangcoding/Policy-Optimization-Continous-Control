@@ -223,13 +223,7 @@ class ValueNetwork(nn.Module):
     def __init__(self, feature_dim: int = 512):
         super().__init__()
 
-        self.value_net = nn.Sequential(
-            nn.Linear(feature_dim, 256),
-            nn.Tanh(),
-            nn.Linear(256, 256),
-            nn.Tanh(),
-            nn.Linear(256, 1),
-        )
+        self.value_net = nn.Linear(feature_dim, 1)
 
         self._init_weights()
 
