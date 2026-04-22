@@ -13,6 +13,7 @@ class ContinuousPolicyHead(nn.Module):
                     feature_dim: int,  
                     log_std_init: float = 0.0,
         ):
+        
         '''
         The policy network for continuous action with parameter θ represented by πθ(a∣s) =N(μθ(s),σ(θ))
 
@@ -153,7 +154,7 @@ class DiscretePolicyHead(nn.Module):
         dist = CategoricalAction(logits= logits)
 
         if deterministic_bool:
-            action = torch.argmax(logits, dim = -1)
+            action = dist.mode()
             return action, None
         
         action = dist.sample()
@@ -297,5 +298,6 @@ class ActorCriticPolicy(nn.Module):
 
         return action, log_prob, value 
 
-    
 
+if __name__ == '__main__':
+    pass 
