@@ -155,9 +155,9 @@ class DiscretePolicyHead(nn.Module):
 
         if deterministic_bool:
             action = dist.mode()
-            return action, None
-        
-        action = dist.sample()
+        else:
+            action = dist.sample()
+            
         log_prob = dist.log_prob(action)
 
         return action, log_prob
@@ -195,13 +195,12 @@ class MultiDiscretePolicyHead(nn.Module):
                     deterministic_bool: bool = False):
         
         logits = self.forward(obs_features)
-
-        if deterministic_bool:
-            action = torch.stack([torch.argmax(l, dim = -1) for l in torch.split(logits, self.action_dim, dim = -1)], dim = -1)
-            return action, None 
-        
         dist = MultiCategoricalAction(logits=logits, nvec = self.action_dim)
-        action = dist.sample()
+        if deterministic_bool:
+            action = dist.mode()
+        else:
+            action = dist.sample()
+        
         log_prob = dist.log_prob(action)
 
         return action, log_prob
