@@ -157,7 +157,7 @@ class DiscretePolicyHead(nn.Module):
             action = dist.mode()
         else:
             action = dist.sample()
-            
+
         log_prob = dist.log_prob(action)
 
         return action, log_prob

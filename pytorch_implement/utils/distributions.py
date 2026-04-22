@@ -38,7 +38,7 @@ class CategoricalAction(ActionDistribution):
             entropy = entropy.sum(dim = -1) 
         return entropy
     def mode(self):
-        return self.dist.mode()
+        return self.dist.mode
 
 
 class DiagGaussianAction(ActionDistribution):
@@ -122,4 +122,4 @@ class MultiCategoricalAction(ActionDistribution):
         return torch.stack([d.entropy() for d in self.dist], dim = -1).sum(-1)
 
     def mode(self):
-        return self.dist.mode()
+        return self.dist.mode
