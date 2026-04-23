@@ -7,7 +7,7 @@ from ..utils.distributions import DiagGaussianAction, CategoricalAction,Bernoull
 from .feature_extractor import BaseFeatureExtractor, FeatureExtractorMLP,FeatureExtractorCNN
 
      
-class ContinuousPolicyHead(nn.Module):
+class ContinuousTanhPolicyHead(nn.Module):
                                    
     def __init__(self,action_dim: int,   
                     feature_dim: int,  
@@ -137,6 +137,68 @@ class ContinuousPolicyHead(nn.Module):
             
         return entropy 
 
+class ContinuousPolicyHead(nn.Module):
+    def __init__(self, action_dim : int, 
+                    feature_dim : int, 
+                    log_std_init : float = 0.0):
+        super().__init__()
+        
+        self.action_dim = action_dim
+
+        # mean output with action_space values 
+        self.mean = nn.Linear(feature_dim, self.action_dim)
+
+        # initial parameter for standard deviation 
+        self.log_std = nn.Parameter(torch.full((self.action_dim,), log_std_init))
+
+    def forward(self, obs_features: torch.Tensor) -> tuple:
+
+        # bounded mean 
+        mean = self.mean(obs_features) 
+
+        #standard deviation 
+        log_std = torch.clamp(self.log_std,-20,2)
+
+        if mean.dim() > 1:
+            std = torch.exp(log_std).unsqueeze(0).expand_as(mean)
+        else:
+            std = torch.exp(log_std)
+
+        return mean, std 
+
+    def sample_action(self, obs_features: torch.Tensor,
+                    reparam_trick_bool: bool = False,
+                    deterministic_bool : bool = False) -> tuple:
+        mean, std = self.forward(obs_features)
+        dist = DiagGaussianAction(mean, std)
+
+        if deterministic_bool:
+            action = mean
+        else:
+            action = dist.sample(reparam_trick_bool)
+
+        log_prob = dist.log_prob(action)
+
+        # clamp action vào [-1,1]
+        action = torch.clamp(action, -1.0, 1.0)
+
+        return action, log_prob
+    
+    def get_log_prob(self, obs_features: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
+        
+        mean, std = self.forward(obs_features)
+        dist = DiagGaussianAction(mean, std)
+
+        return dist.log_prob(action)
+
+    def get_entropy(self, obs_features: torch.Tensor) -> torch.Tensor:
+        
+        mean, std = self.forward(obs_features)
+
+        dist = DiagGaussianAction(mean, std)
+
+        return dist.entropy()
+
 class DiscretePolicyHead(nn.Module):
     
     def __init__(self, action_dim: int, feature_dim: int):
@@ -176,6 +238,7 @@ class DiscretePolicyHead(nn.Module):
         logits = self.forward(obs_features)
         dist = CategoricalAction(logits=logits)
         entropy = dist.entropy()
+
         return entropy
 
 class MultiDiscretePolicyHead(nn.Module):
