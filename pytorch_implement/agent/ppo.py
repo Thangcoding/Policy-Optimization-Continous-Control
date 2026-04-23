@@ -8,7 +8,7 @@ from ..utils.seed import set_seed
 
 
 
-class A2C(OnPolicyAlgorithm):
+class PPO(OnPolicyAlgorithm):
 
         def __init__(self,env: gym.Env, 
                 num_envs: int,
@@ -128,7 +128,7 @@ if __name__ == '__main__':
     env = gym.make("CartPole-v1")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = A2C(env = env,
+    model = PPO(env = env,
                 num_envs=4,
                 feature_network= 'MLP',
                 feature_dim=128,
