@@ -58,7 +58,7 @@ class OnPolicyAlgorithm:
             obs_tensor = torch.tensor(obs, dtype=torch.float32).to(self.device)
 
             with torch.no_grad():
-                action, log_prob , value = self.agent.predict(obs_tensor)
+                action, log_prob , value = self.agent.predict(obs_tensor, deterministic_bool = True)
 
             action_np = action.cpu().numpy()
 
@@ -111,7 +111,6 @@ class OnPolicyAlgorithm:
                 avg_return += batch_logs['avg_return']
                 avd_mean += batch_logs['adv_mean']
                 avd_std += batch_logs['adv_std']
-            
 
             # log store 
             logs = {"loss": loss / n_epochs, 
@@ -125,7 +124,8 @@ class OnPolicyAlgorithm:
             self.logger.set_step(self.global_steps)
             self.logger.log(logs)
 
-            if (self.global_steps % render_ratio == 0) and self.logger.use_wandb:
+            # evaluation 
+            if (self.global_steps % render_ratio == 0) and self.logger.use_wandb and torch.cuda.is_available():
                 frames = record_video(self.eval_env, self.agent, self.device)
                 self.logger.set_step(self.global_steps)
                 self.logger.log_video(frames)

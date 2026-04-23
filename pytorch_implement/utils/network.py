@@ -42,11 +42,15 @@ class ContinuousPolicyHead(nn.Module):
     def forward(self, obs_features: torch.Tensor) -> tuple:
 
         # bounded mean 
-        mean = self.mean(obs_features)
+        mean = self.mean(obs_features) 
 
         #standard deviation 
         log_std = torch.clamp(self.log_std,-20,2)
-        std = torch.exp(log_std).unsqueeze(0).expand_as(mean)
+
+        if mean.dim() > 1:
+            std = torch.exp(log_std).unsqueeze(0).expand_as(mean)
+        else:
+            std = torch.exp(log_std)
 
         return mean, std 
 
@@ -84,15 +88,15 @@ class ContinuousPolicyHead(nn.Module):
         '''
 
         mean, std = self.forward(obs_features)
+
         dist = DiagGaussianAction(mean, std)
                                 
         if deterministic_bool:
             # use mean without sampling 
-            action = mean 
-            return torch.tanh(mean), None 
-        
-        # sample from gaussian distribution using reparameterization trick 
-        z = dist.sample(reparam_trick_bool)
+            z = mean 
+        else:
+            # sample from gaussian distribution using reparameterization trick 
+            z = dist.sample(reparam_trick_bool)
 
         # bounded action with tanh function 
         # clip action if we use method 1:  action = torch.clamp(action)  
@@ -122,7 +126,6 @@ class ContinuousPolicyHead(nn.Module):
         return log_prob
         
     def get_entropy(self, obs_features: torch.Tensor) -> torch.Tensor:
-
         ''' 
         Compute the entropy of the policy distribution
 
@@ -133,7 +136,6 @@ class ContinuousPolicyHead(nn.Module):
         entropy = dist.entropy()
             
         return entropy 
-
 
 class DiscretePolicyHead(nn.Module):
     
@@ -275,7 +277,7 @@ class ActorCriticPolicy(nn.Module):
                 raise ValueError("Unknown feature network")
         else:
             self.network = feature_network
-            
+    
     def evaluate_action(self, obs : torch.Tensor, action: torch.Tensor) -> tuple:
         # evaluation action 
         obs_features = self.network(obs)

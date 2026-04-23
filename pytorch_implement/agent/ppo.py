@@ -74,7 +74,7 @@ class PPO(OnPolicyAlgorithm):
                 
                 # evaluation action 
                 log_prob_new , value, entropy = self.agent.evaluate_action(obs, action)
-                
+
                 # surrogate objective 
                 ratio = torch.exp(log_prob_new - log_prob_old)
                 surr1 = ratio * advantage_value
@@ -123,7 +123,7 @@ class PPO(OnPolicyAlgorithm):
 
 if __name__ == '__main__':
     # test 
-    env = gym.make("CartPole-v1")
+    env = gym.make("Hopper-v4")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = PPO(env = env,
