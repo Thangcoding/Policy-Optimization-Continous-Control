@@ -125,7 +125,7 @@ class OnPolicyAlgorithm:
             self.logger.log(logs)
 
             # evaluation 
-            if (self.global_steps % render_ratio == 0) and self.logger.use_wandb and torch.cuda.is_available():
+            if (self.global_steps % render_ratio == 0) and self.logger.use_wandb:
                 frames = record_video(self.eval_env, self.agent, self.device)
                 self.logger.set_step(self.global_steps)
                 self.logger.log_video(frames)
