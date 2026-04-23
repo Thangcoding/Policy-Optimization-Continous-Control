@@ -62,10 +62,10 @@ class PPO(OnPolicyAlgorithm):
             mean_advantage , std_advantage = 0, 0 
 
             for batch in self.rollout_buffer.batch_data(batch_size= self.batch_size):
-                obs = batch['obs']
-                action = batch["action"]
-                advantage_value = batch['advantage']
-                return_value = batch['return']
+                obs = batch['obs']                    
+                action = batch["action"]              
+                advantage_value = batch['advantage']   
+                return_value = batch['return']        
                 log_prob_old = batch['log_prob']
 
                 if self.advantage_normalize:
@@ -75,12 +75,6 @@ class PPO(OnPolicyAlgorithm):
                 # evaluation action 
                 log_prob_new , value, entropy = self.agent.evaluate_action(obs, action)
                 
-                print('----------------------')
-                print('prob_new: ', torch.exp(log_prob_new))
-                print('prob_old: ', torch.exp(log_prob_old))
-                print("value: ", value)
-                print("entropy: ", entropy)
-                print('------------------------')
                 # surrogate objective 
                 ratio = torch.exp(log_prob_new - log_prob_old)
                 surr1 = ratio * advantage_value
