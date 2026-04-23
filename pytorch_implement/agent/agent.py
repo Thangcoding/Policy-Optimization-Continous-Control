@@ -125,10 +125,11 @@ class OnPolicyAlgorithm:
             self.logger.log(logs)
 
             # evaluation 
-            if (self.global_steps % render_ratio == 0) and self.logger.use_wandb:
+            if (self.global_steps >= render_ratio) and self.logger.use_wandb:
                 frames = record_video(self.eval_env, self.agent, self.device)
                 self.logger.set_step(self.global_steps)
                 self.logger.log_video(frames)
+                render_ratio *= 2
 
     def save(self, path):
         torch.save({
