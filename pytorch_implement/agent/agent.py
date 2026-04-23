@@ -92,15 +92,34 @@ class OnPolicyAlgorithm:
     def train(self):
         raise NotImplementedError
 
-    def learn(self, total_timesteps):
+    def learn(self,n_epochs , total_timesteps):
         render_ratio = int(total_timesteps / 10) 
 
         while self.global_steps < total_timesteps:
             self.collect_rollouts()
 
             self.global_steps += self.n_rollout_steps
-            
-            self.train()
+            loss, policy_loss , value_loss , entropy , avd_mean, avd_std = 0, 0, 0, 0, 0, 0
+
+            for _ in range(n_epochs):
+                batch_logs = self.train()
+
+                loss += batch_logs['loss']
+                policy_loss += batch_logs['policy_loss']
+                value_loss += batch_logs['value_loss'] 
+                entropy += batch_logs['entropy']
+                avd_mean += batch_logs['adv_mean']
+                avd_std += batch_logs['adv_std']
+
+            # log store 
+            logs = {"loss": loss / n_epochs, 
+                    "policy_loss": policy_loss / n_epochs,
+                    "value_loss": value_loss / n_epochs, 
+                    "entropy": entropy / n_epochs,
+                    "avd_mean": avd_mean / n_epochs,
+                    "avd_std": avd_std / n_epochs}
+            self.logger.set_step(self.global_steps)
+            self.logger.log(logs)
 
             if (self.global_steps % render_ratio == 0) and self.logger.use_wandb:
                 frames = record_video(self.eval_env, self.agent, self.device)

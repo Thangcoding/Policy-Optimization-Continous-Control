@@ -48,7 +48,6 @@ class PPO(OnPolicyAlgorithm):
             self.advantage_normalize = advantage_normalize
             self.batch_size = batch_size
             
-
             set_seed(seed)
         
         def train(self): 
@@ -119,8 +118,7 @@ class PPO(OnPolicyAlgorithm):
                     "adv_mean": mean_advantage / n_batches,
                     "adv_std": std_advantage / n_batches,
                 }
-            self.logger.set_step(self.global_steps)
-            self.logger.log(logs)             
+            return logs             
 
 
 if __name__ == '__main__':
@@ -141,6 +139,6 @@ if __name__ == '__main__':
                 use_wandb=False
                 )
     
-    model.learn(total_timesteps = 300)
+    model.learn(total_timesteps = 300, n_epochs= 2)
                 
         

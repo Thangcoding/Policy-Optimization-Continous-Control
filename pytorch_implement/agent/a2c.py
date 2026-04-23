@@ -106,8 +106,8 @@ class A2C(OnPolicyAlgorithm):
                 "adv_mean": mean_advantage / n_batches,
                 "adv_std": std_advantage / n_batches,
             }
-        self.logger.set_step(self.global_steps)
-        self.logger.log(logs) 
+
+        return logs  
 
 if __name__ == '__main__':
     # test 
