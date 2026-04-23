@@ -58,7 +58,7 @@ class OnPolicyAlgorithm:
             obs_tensor = torch.tensor(obs, dtype=torch.float32).to(self.device)
 
             with torch.no_grad():
-                action, log_prob , value = self.agent.predict(obs_tensor, deterministic_bool = True)
+                action, log_prob , value = self.agent.predict(obs_tensor)
 
             action_np = action.cpu().numpy()
 

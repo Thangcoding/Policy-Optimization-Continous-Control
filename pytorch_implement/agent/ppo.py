@@ -74,23 +74,29 @@ class PPO(OnPolicyAlgorithm):
                 
                 # evaluation action 
                 log_prob_new , value, entropy = self.agent.evaluate_action(obs, action)
-
+                
+                print('----------------------')
+                print('prob_new: ', torch.exp(log_prob_new))
+                print('prob_old: ', torch.exp(log_prob_old))
+                print("value: ", value)
+                print("entropy: ", entropy)
+                print('------------------------')
                 # surrogate objective 
                 ratio = torch.exp(log_prob_new - log_prob_old)
                 surr1 = ratio * advantage_value
                 surr2 = torch.clamp(ratio, 1 - self.epsilon , 1 + self.epsilon)* advantage_value
 
                 # policy loss
-                policy_loss = - torch.mean(torch.min(surr1, surr2))
+                policy_loss =  torch.mean(torch.min(surr1, surr2))
 
                 # critic loss 
                 value_loss = F.mse_loss(value, return_value)
 
                 # entropy loss 
-                entropy_mean = - entropy.mean()
+                entropy_mean = entropy.mean()
             
                 # total loss 
-                loss = policy_loss + self.vf_coef * value_loss + self.ent_coef * entropy_mean
+                loss =  self.vf_coef * value_loss - self.ent_coef * entropy_mean - policy_loss
 
                 # optimization step     
                 self.optimizer.zero_grad()
@@ -102,7 +108,7 @@ class PPO(OnPolicyAlgorithm):
                 total_loss += loss.item()
                 total_policy_loss += policy_loss.item()
                 total_value_loss += value_loss.item()
-                total_entropy += -entropy_mean.item()
+                total_entropy += entropy_mean.item()
                 total_return += return_value.mean().item()
                 mean_advantage += advantage_value.mean().item()
                 std_advantage += advantage_value.std().item()
