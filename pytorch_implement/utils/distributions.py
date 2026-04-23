@@ -25,17 +25,20 @@ class CategoricalAction(ActionDistribution):
         return self.dist.sample()
 
     def log_prob(self,action: torch.tensor):
+        
+        # unsqueeze action because 
         log_prob = self.dist.log_prob(action)
         
         if len(log_prob.shape) > 1:
-            log_prob = log_prob.sum(dim = -1) 
+            log_prob = log_prob.sum(dim = -1)
+
         return log_prob
     
     def entropy(self):
         entropy = self.dist.entropy()
-
         if len(entropy.shape) > 1:
             entropy = entropy.sum(dim = -1) 
+        
         return entropy
     def mode(self):
         return self.dist.mode

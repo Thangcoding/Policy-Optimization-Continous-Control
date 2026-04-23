@@ -111,6 +111,7 @@ class OnPolicyAlgorithm:
                 avg_return += batch_logs['avg_return']
                 avd_mean += batch_logs['adv_mean']
                 avd_std += batch_logs['adv_std']
+            
 
             # log store 
             logs = {"loss": loss / n_epochs, 

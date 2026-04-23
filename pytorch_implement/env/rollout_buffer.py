@@ -91,7 +91,6 @@ class RolloutBuffer:
         else:
             raise NotImplementedError
     
-
         self.observation_buffer[self.pos] = obs
         self.action_buffer[self.pos] = action
         self.reward_buffer[self.pos] = reward
@@ -155,6 +154,10 @@ class RolloutBuffer:
         advantage_batch = torch.tensor(self.advantage_buffer,dtype = torch.float32).reshape(-1)
         log_prob_batch = torch.tensor(self.log_prob_buffer,dtype = torch.float32).reshape(-1) 
 
+        # remove redundant dimension
+        if isinstance(self.action_space, spaces.Discrete):
+            action_batch = action_batch.squeeze(-1)
+        
         total_sample = self.buffer_size * self.num_envs
         idx = np.random.permutation(total_sample)
 
