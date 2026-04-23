@@ -92,14 +92,14 @@ class OnPolicyAlgorithm:
     def train(self):
         raise NotImplementedError
 
-    def learn(self,n_epochs , total_timesteps):
+    def learn(self,total_timesteps, n_epochs: int = 1):
         render_ratio = int(total_timesteps / 10) 
 
         while self.global_steps < total_timesteps:
             self.collect_rollouts()
 
             self.global_steps += self.n_rollout_steps
-            loss, policy_loss , value_loss , entropy , avd_mean, avd_std = 0, 0, 0, 0, 0, 0
+            loss, policy_loss , value_loss , entropy , avg_return , avd_mean, avd_std = 0, 0, 0, 0, 0, 0, 0
 
             for _ in range(n_epochs):
                 batch_logs = self.train()
@@ -108,6 +108,7 @@ class OnPolicyAlgorithm:
                 policy_loss += batch_logs['policy_loss']
                 value_loss += batch_logs['value_loss'] 
                 entropy += batch_logs['entropy']
+                avg_return += batch_logs['avg_return']
                 avd_mean += batch_logs['adv_mean']
                 avd_std += batch_logs['adv_std']
 
@@ -116,8 +117,10 @@ class OnPolicyAlgorithm:
                     "policy_loss": policy_loss / n_epochs,
                     "value_loss": value_loss / n_epochs, 
                     "entropy": entropy / n_epochs,
+                    "avg_return": avg_return / n_epochs,
                     "avd_mean": avd_mean / n_epochs,
                     "avd_std": avd_std / n_epochs}
+            
             self.logger.set_step(self.global_steps)
             self.logger.log(logs)
 

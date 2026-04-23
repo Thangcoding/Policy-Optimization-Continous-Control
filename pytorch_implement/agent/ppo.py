@@ -114,7 +114,7 @@ class PPO(OnPolicyAlgorithm):
                     "policy_loss": total_policy_loss / n_batches,
                     "value_loss": total_value_loss / n_batches,
                     "entropy": total_entropy / n_batches,
-                    "avd_return": total_return / n_batches,
+                    "avg_return": total_return / n_batches,
                     "adv_mean": mean_advantage / n_batches,
                     "adv_std": std_advantage / n_batches,
                 }
