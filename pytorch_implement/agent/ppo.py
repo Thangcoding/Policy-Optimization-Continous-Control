@@ -70,7 +70,7 @@ class PPO(OnPolicyAlgorithm):
 
                 if self.advantage_normalize:
                     # normalize advantage value 
-                    advantage_value = (advantage_value - advantage_value.mean()) / (advantage_value.std() + 1e-8)
+                    advantage_value = (advantage_value - advantage_value.mean()) / torch.clamp(advantage_value.std(), min = 1e-6)
                 
                 # evaluation action 
                 log_prob_new , value, entropy = self.agent.evaluate_action(obs, action)
@@ -141,7 +141,8 @@ if __name__ == '__main__':
                 learning_rate= 1e-5,
                 gamma = 0.99,
                 gae_lambda = 0.95,
-                use_wandb=False
+                use_wandb=False,
+                advantage_normalize=True
                 )
     
     model.learn(total_timesteps = 300, n_epochs= 2)
