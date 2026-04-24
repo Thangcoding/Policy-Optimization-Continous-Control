@@ -74,6 +74,7 @@ class DiagGaussianAction(ActionDistribution):
 
         if len(entropy.shape) > 1:
             entropy = entropy.sum(dim = -1) 
+            
         return entropy
 
 class BernoulliAction(ActionDistribution):

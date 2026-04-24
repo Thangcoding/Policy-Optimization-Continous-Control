@@ -79,10 +79,15 @@ class PPO(OnPolicyAlgorithm):
                 ratio = torch.exp(log_prob_new - log_prob_old)
                 surr1 = ratio * advantage_value
                 surr2 = torch.clamp(ratio, 1 - self.epsilon , 1 + self.epsilon)* advantage_value
-
+                
+                # print("------------------------")
+                # print("log_new", torch.exp(log_prob_new))
+                # print("log old", torch.exp(log_prob_old)) 
+                # print("entropy", entropy)
+                # print('------------------------')
                 # policy loss
                 policy_loss =  torch.mean(torch.min(surr1, surr2))
-
+                
                 # critic loss 
                 value_loss = F.mse_loss(value, return_value)
 

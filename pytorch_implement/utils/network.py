@@ -139,8 +139,7 @@ class ContinuousTanhPolicyHead(nn.Module):
 
 class ContinuousPolicyHead(nn.Module):
     def __init__(self, action_dim : int, 
-                    feature_dim : int, 
-                    log_std_init : float = 0.0):
+                    feature_dim : int):
         super().__init__()
         
         self.action_dim = action_dim
@@ -148,21 +147,22 @@ class ContinuousPolicyHead(nn.Module):
         # mean output with action_space values 
         self.mean = nn.Linear(feature_dim, self.action_dim)
 
-        # initial parameter for standard deviation 
-        self.log_std = nn.Parameter(torch.full((self.action_dim,), log_std_init))
+        self.log_std_layer = nn.Linear(feature_dim, action_dim)
 
     def forward(self, obs_features: torch.Tensor) -> tuple:
 
         # bounded mean 
         mean = self.mean(obs_features) 
 
-        #standard deviation 
-        log_std = torch.clamp(self.log_std,-20,2)
+        #standard deviation     
+        log_std = self.log_std_layer(obs_features)
 
-        if mean.dim() > 1:
-            std = torch.exp(log_std).unsqueeze(0).expand_as(mean)
-        else:
-            std = torch.exp(log_std)
+        # print('-------------------')
+        # print(log_std)
+        # print(mean)
+        # print('--------------------')
+
+        std = torch.exp(log_std)
 
         return mean, std 
 

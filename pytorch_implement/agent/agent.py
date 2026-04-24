@@ -130,7 +130,6 @@ class OnPolicyAlgorithm:
                 self.logger.set_step(self.global_steps)
                 self.logger.log_video(frames)
                 render_ratio *= 2
-
     def save(self, path):
         torch.save({
             "model": self.agent.state_dict(),
