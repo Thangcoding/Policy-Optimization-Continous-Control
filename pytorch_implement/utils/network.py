@@ -11,7 +11,6 @@ class ContinuousTanhPolicyHead(nn.Module):
                                    
     def __init__(self,action_dim: int,   
                     feature_dim: int,  
-                    log_std_init: float = 0.0,
         ):
         
         '''

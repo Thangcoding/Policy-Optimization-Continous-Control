@@ -153,6 +153,7 @@ class RolloutBuffer:
         return_batch = torch.tensor(self.return_buffer,dtype = torch.float32).reshape(-1)
         advantage_batch = torch.tensor(self.advantage_buffer,dtype = torch.float32).reshape(-1)
         log_prob_batch = torch.tensor(self.log_prob_buffer,dtype = torch.float32).reshape(-1) 
+        value_batch = torch.tensor(self.value_buffer, dtype = torch.float32).reshape(-1)
 
         # remove redundant dimension
         if isinstance(self.action_space, spaces.Discrete):
@@ -172,6 +173,7 @@ class RolloutBuffer:
                 "advantage": advantage_batch[batch_idx].to(self.device), 
                 "log_prob": log_prob_batch[batch_idx].to(self.device),
                 "return": return_batch[batch_idx].to(self.device),
+                "value": value_batch[batch_idx].to(self.device)
             }
 
 if __name__ == '__main__':

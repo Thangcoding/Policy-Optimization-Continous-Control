@@ -22,7 +22,8 @@ class PPO(OnPolicyAlgorithm):
                 gae_lambda:float = 0.95,   
                 ent_coef: float = 0.5,
                 vf_coef: float = 0.5,
-                epsilon: float = 0.001, 
+                epsilon: float = 0.2, 
+                clip_value: float = 0.2,
                 batch_size: int = 64,
                 seed: int = 64, 
                 use_wandb: bool = False,     
@@ -45,6 +46,7 @@ class PPO(OnPolicyAlgorithm):
             self.ent_coef = ent_coef
             self.vf_coef = vf_coef 
             self.epsilon = epsilon
+            self.clip_value = clip_value
             self.advantage_normalize = advantage_normalize
             self.batch_size = batch_size
             
@@ -67,6 +69,7 @@ class PPO(OnPolicyAlgorithm):
                 advantage_value = batch['advantage']   
                 return_value = batch['return']        
                 log_prob_old = batch['log_prob']
+                value_old = batch['value']
 
                 if self.advantage_normalize:
                     # normalize advantage value 
@@ -80,16 +83,16 @@ class PPO(OnPolicyAlgorithm):
                 surr1 = ratio * advantage_value
                 surr2 = torch.clamp(ratio, 1 - self.epsilon , 1 + self.epsilon)* advantage_value
                 
-                # print("------------------------")
-                # print("log_new", torch.exp(log_prob_new))
-                # print("log old", torch.exp(log_prob_old)) 
-                # print("entropy", entropy)
-                # print('------------------------')
+
                 # policy loss
                 policy_loss =  torch.mean(torch.min(surr1, surr2))
                 
-                # critic loss 
-                value_loss = F.mse_loss(value, return_value)
+                # critic loss with value clip 
+                value_pred_clip = value_old + torch.clamp(value - value_old,-self.clip_value , self.clip_value)
+                value_loss_1 = (value - return_value)**2 
+                value_loss_2 = (value_pred_clip - return_value)**2 
+
+                value_loss = torch.mean(torch.max(value_loss_1, value_loss_2))
 
                 # entropy loss 
                 entropy_mean = entropy.mean()
