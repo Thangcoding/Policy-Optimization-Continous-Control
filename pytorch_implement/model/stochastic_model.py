@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import gymnasium as gym 
 from gymnasium import spaces 
 from ..utils.distributions import DiagGaussianAction, CategoricalAction,BernoulliAction,MultiCategoricalAction
-from .feature_extractor import BaseFeatureExtractor, FeatureExtractorMLP,FeatureExtractorCNN
+from ..utils.feature_extractor import BaseFeatureExtractor, FeatureExtractorMLP,FeatureExtractorCNN
 
      
 class ContinuousTanhPolicyHead(nn.Module):
@@ -151,12 +151,7 @@ class ContinuousPolicyHead(nn.Module):
 
         #standard deviation     
         log_std = torch.clamp(self.log_std_layer(obs_features),-5,2)
-
-        # print('-------------------')
-        # print(log_std)
-        # print(mean)
-        # print('--------------------')
-
+        
         std = torch.exp(log_std)
 
         return mean, std 
@@ -297,7 +292,7 @@ class ValueNetwork(nn.Module):
 
         return self.value_net(obs_features)
 
-class ActorCriticPolicy(nn.Module):
+class ActorCritic(nn.Module):
 
     def __init__(self,feature_network: str | type[BaseFeatureExtractor],
                     observation_space : gym.Space, 

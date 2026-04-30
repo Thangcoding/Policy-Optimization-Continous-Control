@@ -4,8 +4,9 @@ import gymnasium as gym
 from gymnasium import spaces
 from ..env.vectorize_env import VectorEnv
 from ..env.rollout_buffer import RolloutBuffer 
-from ..utils.network import ActorCriticPolicy 
-from ..utils.feature_extractor import BaseFeatureExtractor , FeatureExtractorMLP, FeatureExtractorCNN
+from ..env.replay_buffer import ReplayBuffer
+from ..model.stochastic_model import ActorCritic
+from ..utils.feature_extractor import BaseFeatureExtractor
 from ..utils.logger import Logger , record_video
 
 class OnPolicyAlgorithm:
@@ -22,7 +23,7 @@ class OnPolicyAlgorithm:
                 seed: int,
                 device: torch.device, 
                 ):
-        
+
         self.n_rollout_steps = n_rollout_steps
         self.global_steps = 0 
         self.num_envs = num_envs
@@ -32,13 +33,13 @@ class OnPolicyAlgorithm:
 
         self.device = device
         self.logger = Logger(use_wandb= use_wandb)
-        
+
         # setup vector env 
         self.eval_env = gym.make(env.spec.id, render_mode = "rgb_array")
         self.vec_env = VectorEnv(env,num_envs,type_vector)
 
         # setup_model 
-        self.agent = ActorCriticPolicy(feature_network, self.vec_env.observation_space, self.vec_env.action_space, feature_dim).to(device)
+        self.agent = ActorCritic(feature_network, self.vec_env.observation_space, self.vec_env.action_space, feature_dim).to(device)
 
         # setup rollout 
         self.rollout_buffer = RolloutBuffer(buffer_size = n_rollout_steps, 
@@ -51,7 +52,7 @@ class OnPolicyAlgorithm:
 
     def collect_rollouts(self):
         self.rollout_buffer.reset()
-        
+
         obs , _ = self.vec_env.reset(seed = self.seed)
 
         for _ in range(self.n_rollout_steps):
@@ -130,6 +131,7 @@ class OnPolicyAlgorithm:
                 self.logger.set_step(self.global_steps)
                 self.logger.log_video(frames)
                 render_ratio *= 2
+
     def save(self, path):
         torch.save({
             "model": self.agent.state_dict(),
@@ -144,10 +146,78 @@ class OnPolicyAlgorithm:
         if hasattr(self, "optimizer"):
             self.optimizer.load_state_dict(checkpoint["optimizer"])
 
+
 class OffPolicyAlgorithm:
 
-    def __init__(self):
-        pass 
+    def __init__(self, env: gym.Env, 
+                num_envs: int, 
+                buffer_size: int, 
+                type_vector: str, 
+                gamma: float, 
+                use_wandb: bool, 
+                seed: int, 
+                device: torch.device, 
+                ):
+        self.env = env 
+        self.num_envs = num_envs
+        self.buffer_size = buffer_size
+        self.type_vector = type_vector
+        self.gamma = gamma 
+
+        self.device = device 
+        self.logger = Logger(use_wandb= use_wandb)   
+
+        # setup vector env 
+        self.eval_env = gym.make(self.env.spec.id, render_mode = "rgb_array")
+        self.vec_env = VectorEnv(self.env,self.num_envs, self.type_vector)
+
+        # replay buffer 
+        self.replay_buffer = ReplayBuffer(buffer_size=self.buffer_size,
+                                          num_envs= self.num_envs,
+                                          observation_space= self.vec_env.observation_space,
+                                          action_space= self.vec_env.action_space, 
+                                          device= self.device)
+           
+
+    def set_model(self):
+        raise NotImplementedError
+
+    def train(self):
+        raise NotImplementedError
+    
+    def learn(self, timesteps = 200, episodes = 10):
+        render_ratio = max(int(episodes/10),1)
+
+        for ep in range(episodes):
+
+            for step in range(timesteps):
+                obs , _ = self.vec_env.reset()
+                obs_tensor = torch.tensor(obs, dtype = torch.float32).to(self.device)
+                action  = self.select_action(obs_tensor)
+
+                next_obs, reward, terminated , truncated, _ = self.vec_env.step(action)
+
+
+                self.replay_buffer.add(obs = obs,
+                                    next_obs= next_obs, 
+                                    action=action,
+                                    reward=reward,
+                                    done = terminated)
+
+                obs = next_obs 
+
+                self.train(step)
+
+            # evaluation 
+            if episodes % render_ratio and self.logger.use_wandb:
+                frames = self.eval()
+
+                self.logger.log_video(frames)
+                self.logger.set_step(ep*step)
+
+    def eval(self):
+        raise NotImplementedError
+
 
 
 
