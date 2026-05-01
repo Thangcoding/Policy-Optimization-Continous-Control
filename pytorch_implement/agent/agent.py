@@ -30,12 +30,12 @@ class OnPolicyAlgorithm:
         self.gamma = gamma
         self.gae_lambda = gae_lambda
         self.seed = seed 
+        self.env = env 
 
         self.device = device
         self.logger = Logger(use_wandb= use_wandb)
 
         # setup vector env 
-        self.eval_env = gym.make(env.spec.id, render_mode = "rgb_array")
         self.vec_env = VectorEnv(env,num_envs,type_vector)
 
         # setup_model 
@@ -93,44 +93,46 @@ class OnPolicyAlgorithm:
     def train(self):
         raise NotImplementedError
 
-    def learn(self,total_timesteps, n_epochs: int = 1):
-        render_ratio = int(total_timesteps / 10) 
+    def learn(self,episodes = 100 , n_epochs: int = 1):
+        render_ratio = max(int(episodes/10),1)
 
-        while self.global_steps < total_timesteps:
+        for ep in range(episodes):
             self.collect_rollouts()
 
-            self.global_steps += self.n_rollout_steps
-            loss, policy_loss , value_loss , entropy , avg_return , avd_mean, avd_std = 0, 0, 0, 0, 0, 0, 0
+            loss, policy_loss , value_loss , entropy , avd_mean, avd_std = 0, 0, 0, 0, 0, 0
 
+            # train
             for _ in range(n_epochs):
                 batch_logs = self.train()
 
                 loss += batch_logs['loss']
                 policy_loss += batch_logs['policy_loss']
-                value_loss += batch_logs['value_loss'] 
+                value_loss += batch_logs['value_loss']
                 entropy += batch_logs['entropy']
-                avg_return += batch_logs['avg_return']
                 avd_mean += batch_logs['adv_mean']
                 avd_std += batch_logs['adv_std']
 
+            # evaluation 
+            total_return = 0 
+            for _ in range(10):
+                _, return_val = self.eval()
+                total_return += return_val 
+            
+            self.logger.set_step(ep)
+            if (ep % render_ratio == 0 ) and self.logger.use_wandb:
+                frames = record_video(self.eval_env, self.agent, self.device)
+                self.logger.log_video(frames)
+
             # log store 
-            logs = {"loss": loss / n_epochs, 
+            logs = {"loss": loss / n_epochs,
                     "policy_loss": policy_loss / n_epochs,
                     "value_loss": value_loss / n_epochs, 
                     "entropy": entropy / n_epochs,
-                    "avg_return": avg_return / n_epochs,
+                    "avg_return": total_return / 10,
                     "avd_mean": avd_mean / n_epochs,
                     "avd_std": avd_std / n_epochs}
 
-            self.logger.set_step(self.global_steps)
             self.logger.log(logs)
-
-            # evaluation 
-            if (self.global_steps >= render_ratio) and self.logger.use_wandb:
-                frames = record_video(self.eval_env, self.agent, self.device)
-                self.logger.set_step(self.global_steps)
-                self.logger.log_video(frames)
-                render_ratio *= 2
 
     def save(self, path):
         torch.save({
@@ -149,15 +151,15 @@ class OnPolicyAlgorithm:
 
 class OffPolicyAlgorithm:
 
-    def __init__(self, env: gym.Env, 
-                num_envs: int, 
-                buffer_size: int, 
-                type_vector: str, 
-                gamma: float, 
-                use_wandb: bool, 
-                warm_up_step: int, 
-                seed: int, 
-                device: torch.device, 
+    def __init__(self, env: gym.Env,
+                num_envs: int,
+                buffer_size: int,
+                type_vector: str,
+                gamma: float,
+                use_wandb: bool,
+                warm_up_step: int,
+                seed: int,
+                device: torch.device,
                 ):
         self.env = env 
         self.num_envs = num_envs
@@ -214,7 +216,7 @@ class OffPolicyAlgorithm:
                 # warmup 
                 if warm_up_count < self.warm_up_step:
                     continue  
-                
+
                 critic_loss , actor_loss = self.train(step)
 
                 total_actor_loss += actor_loss 

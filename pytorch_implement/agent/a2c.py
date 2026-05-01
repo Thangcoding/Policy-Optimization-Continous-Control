@@ -15,6 +15,7 @@ class A2C(OnPolicyAlgorithm):
                 device: torch.device, 
                 n_rollout_steps: int = 100, 
                 type_vector: str = "Async", 
+                max_step_eval: int = 1000, 
                 learning_rate: float = 1e-5, 
                 gamma: float = 0.99,       
                 gae_lambda:float = 0.95,   
@@ -42,6 +43,7 @@ class A2C(OnPolicyAlgorithm):
         self.ent_coef = ent_coef
         self.vf_coef = vf_coef 
         self.advantage_normalize = advantage_normalize
+        self.max_step_eval = max_step_eval
         self.batch_size = batch_size
 
         set_seed(seed)
@@ -91,7 +93,6 @@ class A2C(OnPolicyAlgorithm):
             total_policy_loss += policy_loss.item()
             total_value_loss += value_loss.item()
             total_entropy += -entropy_mean.item()
-            total_return += return_value.mean().item()
             mean_advantage += advantage_value.mean().item()
             std_advantage += advantage_value.std().item()
             n_batches += 1
@@ -102,12 +103,48 @@ class A2C(OnPolicyAlgorithm):
                 "policy_loss": total_policy_loss / n_batches,
                 "value_loss": total_value_loss / n_batches,
                 "entropy": total_entropy / n_batches,
-                "avg_return": total_return / n_batches,
                 "adv_mean": mean_advantage / n_batches,
                 "adv_std": std_advantage / n_batches,
             }
 
         return logs  
+
+    def eval(self, render = False):
+        
+        if render:
+            eval_env = gym.make(self.env.spec.id, render_mode = "rgb_array")
+        else:
+            eval_env = gym.make(self.env.spec.id)
+        
+        return_val = 0 
+        frames = []
+        obs, _ = eval_env.reset()
+
+        return_val = 0.0 
+
+        for i in range(self.max_step_eval):
+            
+            if render:
+                frame = eval_env.render()
+                frames.append(frame)
+            
+            obs_tensor = torch.as_tensor(
+                obs, 
+                dtype = torch.float32, 
+                device = self.device
+            )
+            
+            with torch.no_grad():
+                action, _, _ = self.agent.predict(obs_tensor, deterministic_bool = True)
+            
+            obs, reward , terminated, truncated, _ = eval_env.step(action.cpu().numpy())
+
+            return_val += reward 
+            if terminated or truncated:
+                break 
+        
+        eval_env.close()
+        return frames , return_val 
 
 if __name__ == '__main__':
     # test 
@@ -145,4 +182,4 @@ if __name__ == '__main__':
                 use_wandb=False
                 )
     
-    model.learn(total_timesteps = 300)
+    model.learn(episodes= 3)
