@@ -22,6 +22,7 @@ class DDPG(OffPolicyAlgorithm):
                  max_step_eval: int = 1000, 
                  gamma: float = 0.99, 
                  tau: float = 0.005, 
+                 warm_up_step: int = 300, 
                  seed: int = 64, 
                  use_wandb: bool = False, 
                  ):
@@ -31,6 +32,7 @@ class DDPG(OffPolicyAlgorithm):
                          type_vector,
                          gamma,
                          use_wandb,
+                         warm_up_step,
                          seed,
                          device)
 
@@ -52,17 +54,16 @@ class DDPG(OffPolicyAlgorithm):
         obs_dim = self.vec_env.observation_space.shape[0]
         action_dim = self.vec_env.action_space.shape[0]
 
-
         self.actor = Actor(obs_dim = obs_dim,
                            action_dim= action_dim).to(self.device)
-
+        
         self.critic = Critic(obs_dim= obs_dim, 
                              action_dim= action_dim).to(self.device)
-
+        
         # target actor critic 
         self.target_actor = Actor(obs_dim= obs_dim, 
                                   action_dim= action_dim).to(self.device)
-
+        
         self.target_critic = Critic(obs_dim= obs_dim,
                                     action_dim= action_dim).to(self.device)
         
@@ -76,17 +77,16 @@ class DDPG(OffPolicyAlgorithm):
                         noise_std: float = 0.1,
                         deterministic: bool = False):
         obs = obs.unsqueeze(0)
-
         with torch.no_grad(): 
             action = self.actor(obs).cpu().numpy()[0]
-        
+
         # exploration noise 
         if not deterministic:
             action += np.random.normal(0, noise_std, size = action.shape)
-        
+
         return np.clip(action,-1,1)
 
-    def train(self):
+    def train(self, step ):
 
         sample = self.replay_buffer.sample(batch_size=self.batch_size)
         obs, action, reward, next_obs, done = sample['obs'], sample['action'], sample['reward'], sample['next_obs'], sample['done']
@@ -100,7 +100,7 @@ class DDPG(OffPolicyAlgorithm):
             next_action = self.target_actor(next_obs)
             target_q = self.target_critic(next_obs, next_action)
             y = reward + self.gamma*target_q*(1 - done) 
-        
+
         curr_q = self.critic(obs, action)
         critic_loss = F.mse_loss(y, curr_q)
 
@@ -112,8 +112,7 @@ class DDPG(OffPolicyAlgorithm):
         #=================================================
         # actor update 
         #=================================================
-        
-        actor_loss = - self.critic(obs, self.actor(obs)).mean()
+        actor_loss = -self.critic(obs, self.actor(obs)).mean()
         
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
@@ -123,32 +122,54 @@ class DDPG(OffPolicyAlgorithm):
         self.soft_update(self.actor, self.target_actor)
         self.soft_update(self.critic, self.target_critic)
 
+        return critic_loss.item(), actor_loss.item()
+
     def soft_update(self, net, target_net):
         for param, target_param in zip(net.parameters(), target_net.parameters()):
             target_param.data.copy_(
                 self.tau * param.data + (1 - self.tau)*target_param.data
             )
-    
-    def eval(self):
+
+    def eval(self, render=False):
+
+        if render:
+            eval_env = gym.make(self.env.spec.id, render_mode="rgb_array")
+        else:
+            eval_env = gym.make(self.env.spec.id)
+
         frames = []
-        obs, _ = self.eval_env.reset()
+        obs, _ = eval_env.reset()
 
-        for _ in range(self.max_step_val):
-            frame = self.eval_env.render()
-            frames.append(frame)
+        return_val = 0.0
 
-            obs_tensor = torch.tensor(obs, dtype = torch.float32).to(self.device)
+        for i in range(self.max_step_eval):
 
-            with torch.no_grad():
-                action = self.select_action(obs_tensor, deterministic= True)
-            
-            obs, _ , terminated , truncated , _ = self.eval_env.step(action.cpu().numpy())
+            if render:
+                frame = eval_env.render()
+                frames.append(frame)
+
+            obs_tensor = torch.as_tensor(
+                obs,
+                dtype=torch.float32,
+                device=self.device
+            )
+
+            action = self.select_action(
+                obs_tensor,
+                deterministic=True
+            )
+
+            obs, reward, terminated, truncated, _ = eval_env.step(action)
+
+            return_val += reward
+            # hoặc gamma**i * reward
 
             if terminated or truncated:
-                break 
-        
-        return frames 
+                break
 
+        eval_env.close()
+
+        return frames, return_val
 
 if __name__ == '__main__':
     env = gym.make("Hopper-v4")
@@ -165,55 +186,3 @@ if __name__ == '__main__':
             )
 
     model.learn()
-
-        
-
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

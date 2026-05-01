@@ -24,6 +24,7 @@ class TD3(OffPolicyAlgorithm):
                  max_step_eval: int = 1000,
                  gamma: float = 0.99, 
                  tau: float = 0.005, 
+                 warm_up_step: int = 300, 
                  seed: int = 64, 
                  use_wandb: bool = False,
                  ): 
@@ -33,6 +34,7 @@ class TD3(OffPolicyAlgorithm):
                          type_vector,
                          gamma,
                          use_wandb,
+                         warm_up_step,
                          seed,
                          device)
         self.tau = tau 
@@ -75,7 +77,7 @@ class TD3(OffPolicyAlgorithm):
 
         self.critic_target_2 = Critic(obs_dim=obs_dim,
                                       action_dim=action_dim)
-        
+
         self.actor_target.load_state_dict(self.actor.state_dict())
         self.critic_target_1.load_state_dict(self.critic_1.state_dict())
         self.critic_target_2.load_state_dict(self.critic_2.state_dict())
@@ -91,22 +93,22 @@ class TD3(OffPolicyAlgorithm):
 
         with torch.no_grad():
             action = self.actor(obs).cpu().numpy()[0]
-        
+
         # exploration noise 
         if not deterministic:
             action += np.random.normal(0, noise_std, size = action.shape)
-        
+
         return np.clip(action, -1, 1)
 
     def train(self, step_update ):
         sample = self.replay_buffer.sample(batch_size=self.batch_size)
         obs, action, reward, next_obs, done = sample['obs'], sample['action'], sample['reward'], sample['next_obs'], sample['done']
 
-        #===============================================
-        # critic update TD 
-        # a = mu_target(s') + epsilon
+        #=============================================== 
+        # critic update TD                               
+        # a = mu_target(s') + epsilon                    
         # y = r + gamma * min_{i = 1,2} Q_target_i(s',a) 
-        #===============================================
+        #=============================================== 
 
         with torch.no_grad():
             next_action = self.actor_target(next_obs)
@@ -133,9 +135,8 @@ class TD3(OffPolicyAlgorithm):
         #======================================
         # Delayed actor update 
         #======================================
-
+        actor_loss = -self.critic_1(obs, self.actor(obs)).mean()
         if step_update % self.policy_delay == 0:
-            actor_loss = - self.critic_1(obs, self.actor(obs)).mean()
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
             self.actor_optimizer.step()
@@ -144,6 +145,8 @@ class TD3(OffPolicyAlgorithm):
             self.soft_update(self.actor, self.actor_target)
             self.soft_update(self.critic_1,self.critic_target_1)
             self.soft_update(self.critic_2,self.critic_target_2)
+        
+        return critic_loss.item(), actor_loss.item()
 
     def soft_update(self, net, target_net):
         for param, target_param in zip(net.parameters(), target_net.parameters()):
@@ -151,25 +154,46 @@ class TD3(OffPolicyAlgorithm):
                 self.tau * param.data + (1 - self.tau)*target_param.data
             )
 
-    def eval(self):
+    def eval(self, render=False):
+
+        if render:
+            eval_env = gym.make(self.env.spec.id, render_mode="rgb_array")
+        else:
+            eval_env = gym.make(self.env.spec.id)
+
         frames = []
-        obs, _ = self.eval_env.reset()
+        obs, _ = eval_env.reset()
 
-        for _ in range(self.max_step_val):
-            frame = self.eval_env.render()
-            frames.append(frame)
+        return_val = 0.0
 
-            obs_tensor = torch.tensor(obs, dtype = torch.float32).to(self.device)
+        for i in range(self.max_step_eval):
 
-            with torch.no_grad():
-                action = self.select_action(obs_tensor, deterministic= True)
-            
-            obs, _ , terminated , truncated , _ = self.eval_env.step(action.cpu().numpy())
+            if render:
+                frame = eval_env.render()
+                frames.append(frame)
+
+            obs_tensor = torch.as_tensor(
+                obs,
+                dtype=torch.float32,
+                device=self.device
+            )
+
+            action = self.select_action(
+                obs_tensor,
+                deterministic=True
+            )
+
+            obs, reward, terminated, truncated, _ = eval_env.step(action)
+
+            return_val += reward
+            # hoặc gamma**i * reward
 
             if terminated or truncated:
-                break 
-        
-        return frames 
+                break
+
+        eval_env.close()
+
+        return frames, return_val
 
 if __name__ == '__main__':
     env = gym.make("Hopper-v4")
@@ -184,4 +208,4 @@ if __name__ == '__main__':
                 type_vector="Asyc",
                 max_step_eval=1000)
     
-    model.learn(episodes=1)
+    model.learn(episodes=10)

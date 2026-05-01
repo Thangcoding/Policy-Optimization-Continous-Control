@@ -7,7 +7,6 @@ from ..utils.feature_extractor import BaseFeatureExtractor
 from ..utils.seed import set_seed 
 
 
-
 class PPO(OnPolicyAlgorithm):
 
         def __init__(self,env: gym.Env, 
@@ -42,18 +41,18 @@ class PPO(OnPolicyAlgorithm):
                 use_wandb,
                 seed, 
                 device)
-            
+
             self.ent_coef = ent_coef
             self.vf_coef = vf_coef 
             self.epsilon = epsilon
             self.clip_value = clip_value
             self.advantage_normalize = advantage_normalize
             self.batch_size = batch_size
-            
+
             set_seed(seed)
-        
+
         def train(self): 
-            
+
             self.agent.train()
             total_loss = 0 
             total_policy_loss = 0 
@@ -83,10 +82,9 @@ class PPO(OnPolicyAlgorithm):
                 surr1 = ratio * advantage_value
                 surr2 = torch.clamp(ratio, 1 - self.epsilon , 1 + self.epsilon)* advantage_value
                 
-
                 # policy loss
                 policy_loss =  torch.mean(torch.min(surr1, surr2))
-                
+
                 # critic loss with value clip 
                 value_pred_clip = value_old + torch.clamp(value - value_old,-self.clip_value , self.clip_value)
                 value_loss_1 = (value - return_value)**2 
@@ -96,7 +94,7 @@ class PPO(OnPolicyAlgorithm):
 
                 # entropy loss 
                 entropy_mean = entropy.mean()
-            
+
                 # total loss 
                 loss =  self.vf_coef * value_loss - self.ent_coef * entropy_mean - policy_loss
 
@@ -126,8 +124,8 @@ class PPO(OnPolicyAlgorithm):
                     "adv_mean": mean_advantage / n_batches,
                     "adv_std": std_advantage / n_batches,
                 }
-            return logs             
 
+            return logs             
 
 if __name__ == '__main__':
     # test 
@@ -149,5 +147,3 @@ if __name__ == '__main__':
                 )
     
     model.learn(total_timesteps = 300, n_epochs= 2)
-                
-        

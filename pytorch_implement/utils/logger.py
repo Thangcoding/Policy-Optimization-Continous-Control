@@ -17,7 +17,7 @@ class Logger:
             self.wandb = wandb
 
     def log(self, data: dict):
-        data["step"] = self.step
+        data["episode"] = self.step
 
         # print
         print(data)

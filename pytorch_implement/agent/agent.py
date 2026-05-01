@@ -121,7 +121,7 @@ class OnPolicyAlgorithm:
                     "avg_return": avg_return / n_epochs,
                     "avd_mean": avd_mean / n_epochs,
                     "avd_std": avd_std / n_epochs}
-            
+
             self.logger.set_step(self.global_steps)
             self.logger.log(logs)
 
@@ -155,6 +155,7 @@ class OffPolicyAlgorithm:
                 type_vector: str, 
                 gamma: float, 
                 use_wandb: bool, 
+                warm_up_step: int, 
                 seed: int, 
                 device: torch.device, 
                 ):
@@ -163,12 +164,12 @@ class OffPolicyAlgorithm:
         self.buffer_size = buffer_size
         self.type_vector = type_vector
         self.gamma = gamma 
+        self.warm_up_step = warm_up_step
 
         self.device = device 
         self.logger = Logger(use_wandb= use_wandb)   
 
         # setup vector env 
-        self.eval_env = gym.make(self.env.spec.id, render_mode = "rgb_array")
         self.vec_env = VectorEnv(self.env,self.num_envs, self.type_vector)
 
         # replay buffer 
@@ -187,10 +188,14 @@ class OffPolicyAlgorithm:
     
     def learn(self, timesteps = 200, episodes = 10):
         render_ratio = max(int(episodes/10),1)
-
+        warm_up_count = 0 
         for ep in range(episodes):
+            total_critic_loss = 0 
+            total_actor_loss = 0 
+            total_return = 0 
 
             for step in range(timesteps):
+                warm_up_count += 1 
                 obs , _ = self.vec_env.reset()
                 obs_tensor = torch.tensor(obs, dtype = torch.float32).to(self.device)
                 action  = self.select_action(obs_tensor)
@@ -206,19 +211,31 @@ class OffPolicyAlgorithm:
 
                 obs = next_obs 
 
-                self.train(step)
+                # warmup 
+                if warm_up_count < self.warm_up_step:
+                    continue  
+                
+                critic_loss , actor_loss = self.train(step)
 
-            # evaluation 
+                total_actor_loss += actor_loss 
+                total_critic_loss += critic_loss 
+            
+            # evaluation
+            for _ in range(10):
+                frames, return_val = self.eval()
+                total_return += return_val 
+
+            logs = {'actor_loss': total_actor_loss/timesteps,
+                   'critic_loss': total_critic_loss/timesteps, 
+                   'eval_return': total_return/10}
+            
+            # render evaluation 
             if episodes % render_ratio and self.logger.use_wandb:
-                frames = self.eval()
-
+                frames, _ = self.eval(render = True)
                 self.logger.log_video(frames)
-                self.logger.set_step(ep*step)
+            
+            self.logger.set_step(ep)
+            self.logger.log(logs)
 
     def eval(self):
         raise NotImplementedError
-
-
-
-
-
