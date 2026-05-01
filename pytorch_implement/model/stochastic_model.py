@@ -5,6 +5,7 @@ import gymnasium as gym
 from gymnasium import spaces 
 from ..utils.distributions import DiagGaussianAction, CategoricalAction,BernoulliAction,MultiCategoricalAction
 from ..utils.feature_extractor import BaseFeatureExtractor, FeatureExtractorMLP,FeatureExtractorCNN
+from torch.distributions import Normal
 
      
 class ContinuousTanhPolicyHead(nn.Module):
@@ -133,61 +134,83 @@ class ContinuousTanhPolicyHead(nn.Module):
         return entropy 
 
 class ContinuousPolicyHead(nn.Module):
-    def __init__(self, action_dim : int, 
-                    feature_dim : int):
+    """
+    Stable Gaussian policy head for PPO (continuous action).
+
+    Features:
+    - State-dependent mean
+    - Global learnable log_std (stable for PPO)
+    - Correct log_prob summation
+    - Entropy support
+    - Deterministic / stochastic action
+    - Action clipping to [-1,1]
+
+    Recommended for:
+    Hopper, Walker2d, HalfCheetah, Ant
+    """
+
+    def __init__(
+        self,
+        feature_dim: int,
+        action_dim: int,
+        log_std_init: float = -0.5,
+    ):
         super().__init__()
-        
+
         self.action_dim = action_dim
 
-        # mean output with action_space values 
-        self.mean = nn.Linear(feature_dim, self.action_dim)
+        # Mean network
+        self.mean = nn.Linear(feature_dim, action_dim)
 
-        self.log_std_layer = nn.Linear(feature_dim, action_dim)
+        # Global std parameter (best for PPO stability)
+        self.log_std = nn.Parameter(
+            torch.ones(action_dim) * log_std_init
+        )
 
-    def forward(self, obs_features: torch.Tensor) -> tuple:
+        self._init_weights()
 
-        # bounded mean 
-        mean = self.mean(obs_features) 
+    def _init_weights(self):
+        nn.init.orthogonal_(self.mean.weight, gain=0.01)
+        nn.init.constant_(self.mean.bias, 0.0)
 
-        #standard deviation     
-        log_std = torch.clamp(self.log_std_layer(obs_features),-5,2)
-        
+    def forward(self, features):
+        mean = self.mean(features)
+
+        log_std = self.log_std.expand_as(mean)
         std = torch.exp(log_std)
 
-        return mean, std 
+        return mean, std
 
-    def sample_action(self, obs_features: torch.Tensor,
-                    reparam_trick_bool: bool = False,
-                    deterministic_bool : bool = False) -> tuple:
-        mean, std = self.forward(obs_features)
-        dist = DiagGaussianAction(mean, std)
+    def get_dist(self, features):
+        mean, std = self.forward(features)
+        return Normal(mean, std)
+
+    def sample_action(
+        self,
+        obs_features,
+        deterministic_bool=False
+    ):
+        dist = self.get_dist(obs_features)
 
         if deterministic_bool:
-            action = mean
+            action = dist.mean
         else:
-            action = dist.sample(reparam_trick_bool)
+            action = dist.rsample()
 
-        log_prob = dist.log_prob(action)
-
-        # clamp action vào [-1,1]
+        # bounded action
         action = torch.clamp(action, -1.0, 1.0)
 
+        log_prob = dist.log_prob(action).sum(dim=-1)
+
         return action, log_prob
-    
-    def get_log_prob(self, obs_features: torch.Tensor, action: torch.Tensor) -> torch.Tensor:
-        
-        mean, std = self.forward(obs_features)
-        dist = DiagGaussianAction(mean, std)
 
-        return dist.log_prob(action)
+    def get_log_prob(self, obs_features, action):
+        dist = self.get_dist(obs_features)
+        return dist.log_prob(action).sum(dim=-1)
 
-    def get_entropy(self, obs_features: torch.Tensor) -> torch.Tensor:
-        
-        mean, std = self.forward(obs_features)
-
-        dist = DiagGaussianAction(mean, std)
-
-        return dist.entropy()
+    def get_entropy(self, obs_features):
+        dist = self.get_dist(obs_features)
+        return dist.entropy().sum(dim=-1)
 
 class DiscretePolicyHead(nn.Module):
     
@@ -309,7 +332,7 @@ class ActorCritic(nn.Module):
         elif isinstance(action_space, spaces.Box):
             # Box action 
             action_dim = action_space.shape[0]
-            self.policy = ContinuousTanhPolicyHead(action_dim = action_dim, feature_dim= feature_dim)
+            self.policy = ContinuousPolicyHead(action_dim = action_dim, feature_dim= feature_dim)
         elif isinstance(action_space, spaces.MultiDiscrete):
             # MultiDiscrete action
             action_dim = action_space.nvec
