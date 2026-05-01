@@ -120,7 +120,7 @@ class OnPolicyAlgorithm:
             
             self.logger.set_step(ep)
             if (ep % render_ratio == 0 ) and self.logger.use_wandb:
-                frames = record_video(self.eval_env, self.agent, self.device)
+                frames, _  = self.eval(render = True)
                 self.logger.log_video(frames)
 
             # log store 
