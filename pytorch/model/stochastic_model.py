@@ -178,6 +178,7 @@ class ContinuousPolicyHead(nn.Module):
 
         log_std = torch.clamp(self.log_std.expand_as(mean),-5,2)
         std = torch.exp(log_std)
+
         return mean, std
 
     def get_dist(self, features):

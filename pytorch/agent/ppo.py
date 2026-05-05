@@ -60,7 +60,6 @@ class PPO(OnPolicyAlgorithm):
             total_policy_loss = 0 
             total_value_loss = 0 
             total_entropy = 0 
-            total_return = 0 
             n_batches = 0 
             mean_advantage , std_advantage = 0, 0 
 
@@ -79,7 +78,7 @@ class PPO(OnPolicyAlgorithm):
                 
                 # evaluation action 
                 log_prob_new , value, entropy = self.agent.evaluate_action(obs, action)
-                
+            
                 # surrogate objective 
                 ratio = torch.exp(log_prob_new - log_prob_old)
                 surr1 = ratio * advantage_value
@@ -165,6 +164,7 @@ class PPO(OnPolicyAlgorithm):
             
             eval_env.close()
             return frames , return_val 
+        
 if __name__ == '__main__':
     # test 
     env = gym.make("Hopper-v4")
@@ -184,4 +184,4 @@ if __name__ == '__main__':
                 advantage_normalize=True
                 )
     
-    model.learn(episodes= 3, n_epochs= 2)
+    model.learn(episodes= 10, epochs= 4)

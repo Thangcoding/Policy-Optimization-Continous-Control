@@ -93,7 +93,7 @@ class OnPolicyAlgorithm:
     def train(self):
         raise NotImplementedError
 
-    def learn(self,episodes = 100 , n_epochs: int = 1):
+    def learn(self,episodes = 100 , epochs: int = 1):
         render_ratio = max(int(episodes/10),1)
 
         for ep in range(episodes):
@@ -102,7 +102,7 @@ class OnPolicyAlgorithm:
             loss, policy_loss , value_loss , entropy , avd_mean, avd_std = 0, 0, 0, 0, 0, 0
 
             # train
-            for _ in range(n_epochs):
+            for _ in range(epochs):
                 batch_logs = self.train()
 
                 loss += batch_logs['loss']
@@ -124,13 +124,13 @@ class OnPolicyAlgorithm:
                 self.logger.log_video(frames)
 
             # log store 
-            logs = {"loss": loss / n_epochs,
-                    "policy_loss": policy_loss / n_epochs,
-                    "value_loss": value_loss / n_epochs, 
-                    "entropy": entropy / n_epochs,
+            logs = {"loss": loss / epochs,
+                    "policy_loss": policy_loss / epochs,
+                    "value_loss": value_loss / epochs, 
+                    "entropy": entropy / epochs,
                     "avg_return": total_return / 10,
-                    "avd_mean": avd_mean / n_epochs,
-                    "avd_std": avd_std / n_epochs}
+                    "avd_mean": avd_mean / epochs,
+                    "avd_std": avd_std / epochs}
 
             self.logger.log(logs)
 
