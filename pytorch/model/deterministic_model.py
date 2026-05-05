@@ -17,7 +17,7 @@ class Actor(nn.Module):
             nn.Linear(64, action_dim),
             nn.Tanh()
         )
-        
+
     def forward(self, obs: torch.tensor):   
         if self.max_action is not None:
             return self.max_action*self.net(obs)

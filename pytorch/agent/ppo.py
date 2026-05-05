@@ -72,6 +72,7 @@ class PPO(OnPolicyAlgorithm):
                 log_prob_old = batch['log_prob']
                 value_old = batch['value']
 
+
                 if self.advantage_normalize:
                     # normalize advantage value 
                     advantage_value = (advantage_value - advantage_value.mean()) / torch.clamp(advantage_value.std(), min = 1e-6)
@@ -126,14 +127,14 @@ class PPO(OnPolicyAlgorithm):
                 }
 
             return logs     
-        
+
         def eval(self, render = False):
-                    
+        
             if render:
                 eval_env = gym.make(self.env.spec.id, render_mode = "rgb_array")
             else:
                 eval_env = gym.make(self.env.spec.id)
-            
+
             return_val = 0 
             frames = []
             obs, _ = eval_env.reset()

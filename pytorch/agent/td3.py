@@ -20,7 +20,7 @@ class TD3(OffPolicyAlgorithm):
                  policy_delay: int = 2, 
                  target_policy_noise: float = 0.2, 
                  target_noise_clip: float = 0.5,
-                 type_vector: int = 'Asyn', 
+                 type_vector: str = 'Sync', 
                  max_step_eval: int = 1000,
                  gamma: float = 0.99, 
                  tau: float = 0.005, 

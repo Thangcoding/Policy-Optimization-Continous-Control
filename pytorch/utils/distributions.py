@@ -1,16 +1,16 @@
 import torch 
 from torch.distributions import Normal , Categorical, Bernoulli
 
-class ActionDistribution:
+class ActionDistribution: 
 
-    def sample(self):
-        raise NotImplementedError
+    def sample(self): 
+        raise NotImplementedError 
     
-    def log_prob(self):
+    def log_prob(self): 
         raise NotImplementedError 
     
     def entropy(self):
-        raise NotImplementedError
+        raise NotImplementedError 
     
 class CategoricalAction(ActionDistribution):
     '''
@@ -25,24 +25,24 @@ class CategoricalAction(ActionDistribution):
         return self.dist.sample()
 
     def log_prob(self,action: torch.tensor):
-        
+
         # unsqueeze action because 
         log_prob = self.dist.log_prob(action)
-        
+
         if len(log_prob.shape) > 1:
             log_prob = log_prob.sum(dim = -1)
 
         return log_prob
-    
+
     def entropy(self):
         entropy = self.dist.entropy()
-        if len(entropy.shape) > 1:
+        if len(entropy.shape) > 1: 
             entropy = entropy.sum(dim = -1) 
-        
+
         return entropy
+    
     def mode(self):
         return self.dist.mode
-
 
 class DiagGaussianAction(ActionDistribution):
 
@@ -65,9 +65,9 @@ class DiagGaussianAction(ActionDistribution):
     def log_prob(self,action: torch.tensor):
         log_prob = self.dist.log_prob(action)
         
-        if len(log_prob.shape) > 1:
-            log_prob = log_prob.sum(dim = -1) 
-        return log_prob
+        if len(log_prob.shape) > 1:  
+            log_prob = log_prob.sum(dim = -1)  
+        return log_prob 
 
     def entropy(self):
         entropy = self.dist.entropy()
@@ -127,14 +127,4 @@ class MultiCategoricalAction(ActionDistribution):
 
     def mode(self):
         return self.dist.mode
-
-
-
-
-
-
-
-
-
-
 

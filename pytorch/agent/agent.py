@@ -117,7 +117,7 @@ class OnPolicyAlgorithm:
             for _ in range(10):
                 _, return_val = self.eval()
                 total_return += return_val 
-            
+
             self.logger.set_step(ep)
             if (ep % render_ratio == 0 ) and self.logger.use_wandb:
                 frames, _  = self.eval(render = True)
@@ -147,7 +147,6 @@ class OnPolicyAlgorithm:
 
         if hasattr(self, "optimizer"):
             self.optimizer.load_state_dict(checkpoint["optimizer"])
-
 
 class OffPolicyAlgorithm:
 

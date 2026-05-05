@@ -127,10 +127,10 @@ class ContinuousTanhPolicyHead(nn.Module):
 
         '''
         mean , std = self.forward(obs_features)
-        
+
         dist = DiagGaussianAction(mean, std)
         entropy = dist.entropy()
-            
+
         return entropy 
 
 class ContinuousPolicyHead(nn.Module):
@@ -176,9 +176,8 @@ class ContinuousPolicyHead(nn.Module):
     def forward(self, features):
         mean = self.mean(features)
 
-        log_std = self.log_std.expand_as(mean)
+        log_std = torch.clamp(self.log_std.expand_as(mean),-5,2)
         std = torch.exp(log_std)
-
         return mean, std
 
     def get_dist(self, features):
@@ -317,17 +316,17 @@ class ValueNetwork(nn.Module):
 
 class ActorCritic(nn.Module):
 
-    def __init__(self,feature_network: str | type[BaseFeatureExtractor],
-                    observation_space : gym.Space, 
-                    action_space : gym.Space,
-                    feature_dim: int):
-        super().__init__()
+    def __init__(self,feature_network: str | type[BaseFeatureExtractor], 
+                    observation_space : gym.Space,  
+                    action_space : gym.Space, 
+                    feature_dim: int): 
+        super().__init__() 
 
         self.action_space = action_space 
 
         if isinstance(action_space, spaces.Discrete):
-            # Discrete action 
-            action_dim = action_space.n
+            # Discrete action  
+            action_dim = action_space.n 
             self.policy = DiscretePolicyHead(action_dim= action_dim, feature_dim=feature_dim)
         elif isinstance(action_space, spaces.Box):
             # Box action 
