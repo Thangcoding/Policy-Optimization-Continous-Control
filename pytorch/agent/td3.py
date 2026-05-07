@@ -12,8 +12,8 @@ class TD3(OffPolicyAlgorithm):
 
     def __init__(self,env: gym.Env, 
                  num_envs: int, 
-                 device: torch.device, 
-                 batch_size: int = 64, 
+                 device: torch.device,  
+                 batch_size: int = 64,  
                  actor_lr: float = 1e-4,
                  critic_lr: float = 1e-3, 
                  buffer_size: int = 100000, 

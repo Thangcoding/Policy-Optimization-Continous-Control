@@ -2,12 +2,12 @@ import torch
 import numpy as np
 import gymnasium as gym 
 from gymnasium import spaces
-from ..env.vectorize_env import VectorEnv
+from ..env.vectorize_env import  get_vec_env
 from ..env.rollout_buffer import RolloutBuffer 
 from ..env.replay_buffer import ReplayBuffer
 from ..model.stochastic_model import ActorCritic
 from ..utils.feature_extractor import BaseFeatureExtractor
-from ..utils.logger import Logger , record_video
+from ..utils.logger import Logger 
 
 class OnPolicyAlgorithm:
     def __init__(self,env : gym.Env,
@@ -17,6 +17,7 @@ class OnPolicyAlgorithm:
                 learning_rate: float, 
                 n_rollout_steps: int, 
                 type_vector: str,  
+                observation_normalize: bool,
                 gamma: float, 
                 gae_lambda: float, 
                 use_wandb: bool, 
@@ -29,6 +30,7 @@ class OnPolicyAlgorithm:
         self.num_envs = num_envs
         self.gamma = gamma
         self.gae_lambda = gae_lambda
+        self.observation_normalize = observation_normalize
         self.seed = seed 
         self.env = env 
 
@@ -36,17 +38,18 @@ class OnPolicyAlgorithm:
         self.logger = Logger(use_wandb= use_wandb)
 
         # setup vector env 
-        self.vec_env = VectorEnv(env,num_envs,type_vector)
-
+        self.vec_env = get_vec_env(env, num_envs, type_vector, observation_normalize)
+        
         # setup_model 
-        self.agent = ActorCritic(feature_network, self.vec_env.observation_space, self.vec_env.action_space, feature_dim).to(device)
+        self.agent = ActorCritic(feature_network, self.vec_env.single_observation_space, self.vec_env.single_action_space, feature_dim).to(device)
 
         # setup rollout 
         self.rollout_buffer = RolloutBuffer(buffer_size = n_rollout_steps, 
                                             num_envs = num_envs, 
-                                            observation_space = self.vec_env.observation_space, 
-                                            action_space = self.vec_env.action_space, 
+                                            observation_space = self.vec_env.single_observation_space, 
+                                            action_space = self.vec_env.single_action_space, 
                                             device = device)
+
         # optimizer 
         self.optimizer = torch.optim.Adam(self.agent.parameters(),lr = learning_rate)
 
@@ -57,6 +60,7 @@ class OnPolicyAlgorithm:
 
         for _ in range(self.n_rollout_steps):
             obs_tensor = torch.tensor(obs, dtype=torch.float32).to(self.device)
+
 
             with torch.no_grad():
                 action, log_prob , value = self.agent.predict(obs_tensor)
@@ -113,14 +117,23 @@ class OnPolicyAlgorithm:
                 avd_std += batch_logs['adv_std']
 
             # evaluation 
+            if self.observation_normalize:
+                stats_observation = {'mean': self.vec_env.mean, 
+                                    'var': self.vec_env.var, 
+                                    'count': self.vec_env.count}
+            else:
+                stats_observation = {'mean': None , 
+                                     'var': None, 
+                                     'count': None}
+            
             total_return = 0 
             for _ in range(10):
-                _, return_val = self.eval()
+                _, return_val = self.eval(stats_observation = stats_observation)
                 total_return += return_val 
 
             self.logger.set_step(ep)
             if (ep % render_ratio == 0 ) and self.logger.use_wandb:
-                frames, _  = self.eval(render = True)
+                frames, _  = self.eval(render = True, stats_observation = stats_observation)
                 self.logger.log_video(frames)
 
             # log store 
@@ -204,11 +217,11 @@ class OffPolicyAlgorithm:
                 next_obs, reward, terminated , truncated, _ = self.vec_env.step(action)
 
 
-                self.replay_buffer.add(obs = obs,
+                self.replay_buffer.add(obs = obs,       
                                     next_obs= next_obs, 
-                                    action=action,
-                                    reward=reward,
-                                    done = terminated)
+                                    action=action,      
+                                    reward=reward,      
+                                    done = terminated)  
 
                 obs = next_obs 
 

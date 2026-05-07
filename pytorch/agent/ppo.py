@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn 
 import torch.nn.functional as F 
 import gymnasium as gym 
+from ..env.normalize import NormalizeObservation
 from .agent import OnPolicyAlgorithm
 from ..utils.feature_extractor import BaseFeatureExtractor
 from ..utils.seed import set_seed 
@@ -20,13 +21,14 @@ class PPO(OnPolicyAlgorithm):
                 learning_rate: float = 1e-5, 
                 gamma: float = 0.99,       
                 gae_lambda:float = 0.95,   
-                ent_coef: float = 0.5,
-                vf_coef: float = 0.5,
+                ent_coef: float = 0.5, 
+                vf_coef: float = 0.5, 
                 epsilon: float = 0.2, 
-                clip_value: float = 0.2,
-                batch_size: int = 64,
+                clip_value: float = 0.2, 
+                batch_size: int = 64, 
                 seed: int = 64, 
-                use_wandb: bool = False,     
+                use_wandb: bool = False, 
+                observation_normalize: bool = True,     
                 advantage_normalize: bool = False, 
                 ):
 
@@ -37,6 +39,7 @@ class PPO(OnPolicyAlgorithm):
                 learning_rate,  
                 n_rollout_steps,
                 type_vector,
+                observation_normalize, 
                 gamma,
                 gae_lambda, 
                 use_wandb,
@@ -70,7 +73,6 @@ class PPO(OnPolicyAlgorithm):
                 return_value = batch['return']        
                 log_prob_old = batch['log_prob']
                 value_old = batch['value']
-
 
                 if self.advantage_normalize:
                     # normalize advantage value 
@@ -127,16 +129,24 @@ class PPO(OnPolicyAlgorithm):
 
             return logs     
 
-        def eval(self, render = False):
-        
+        def eval(self, render = False, stats_observation = None ):
+            
+            mean , var , count = stats_observation['mean'], stats_observation['var'], stats_observation['count']
             if render:
-                eval_env = gym.make(self.env.spec.id, render_mode = "rgb_array")
-            else:
-                eval_env = gym.make(self.env.spec.id)
 
-            return_val = 0 
-            frames = []
-            obs, _ = eval_env.reset()
+                eval_env = NormalizeObservation(gym.make(self.env.spec.id, render_mode = "rgb_array"), 
+                                                mean = mean, 
+                                                var = var , 
+                                                count = count)
+            else:
+                eval_env = NormalizeObservation(gym.make(self.env.spec.id), 
+                                                mean = mean , 
+                                                var = var , 
+                                                count = count)
+
+            return_val = 0            
+            frames = []               
+            obs, _ = eval_env.reset() 
 
             return_val = 0.0 
 
@@ -184,4 +194,4 @@ if __name__ == '__main__':
                 advantage_normalize=True
                 )
     
-    model.learn(episodes= 10, epochs= 4)
+    model.learn(episodes= 10, epochs= 5)

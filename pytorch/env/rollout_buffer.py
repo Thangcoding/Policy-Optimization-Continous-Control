@@ -2,7 +2,7 @@ import numpy as np
 import torch 
 import gymnasium as gym  
 from gymnasium import spaces 
-from .vectorize_env import VectorEnv
+from .vectorize_env import get_vec_env
 
 class RolloutBuffer: 
 
@@ -179,7 +179,8 @@ class RolloutBuffer:
 if __name__ == '__main__':
     # test 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    vec_env = VectorEnv(name_env= 'CartPole-v1')
+    env = gym.make("Cartpole-v1")
+    vec_env = get_vec_env(env)
     buffer = RolloutBuffer(buffer_size= 10, 
                         num_envs= 4,
                         gamma= 0.99,
