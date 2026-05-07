@@ -135,18 +135,7 @@ class ContinuousTanhPolicyHead(nn.Module):
 
 class ContinuousPolicyHead(nn.Module):
     """
-    Stable Gaussian policy head for PPO (continuous action).
-
-    Features:
-    - State-dependent mean
-    - Global learnable log_std (stable for PPO)
-    - Correct log_prob summation
-    - Entropy support
-    - Deterministic / stochastic action
-    - Action clipping to [-1,1]
-
-    Recommended for:
-    Hopper, Walker2d, HalfCheetah, Ant
+    
     """
 
     def __init__(
@@ -193,14 +182,14 @@ class ContinuousPolicyHead(nn.Module):
         dist = self.get_dist(obs_features)
 
         if deterministic_bool:
-            action = dist.mean
+            raw_action = dist.mean
         else:
-            action = dist.rsample()
+            raw_action = dist.rsample()
 
         # bounded action
-        action = torch.clamp(action, -1.0, 1.0)
+        action = torch.clamp(raw_action, -1.0, 1.0)
 
-        log_prob = dist.log_prob(action).sum(dim=-1)
+        log_prob = dist.log_prob(raw_action).sum(dim=-1)
 
         return action, log_prob
 
