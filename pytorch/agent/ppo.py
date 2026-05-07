@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F 
 import gymnasium as gym 
 from ..env.normalize import NormalizeObservation
+from ..env.vectorize_env import get_vec_env
 from .agent import OnPolicyAlgorithm
 from ..utils.feature_extractor import BaseFeatureExtractor
 from ..utils.seed import set_seed 
@@ -132,14 +133,15 @@ class PPO(OnPolicyAlgorithm):
         def eval(self, render = False, stats_observation = None ):
             
             mean , var , count = stats_observation['mean'], stats_observation['var'], stats_observation['count']
+            vector = get_vec_env(env= self.env, num_envs= 1, type_vector= "Sync", observation_normalize= False)
             if render:
 
-                eval_env = NormalizeObservation(gym.make(self.env.spec.id, render_mode = "rgb_array"), 
+                eval_env = NormalizeObservation(vector, 
                                                 mean = mean, 
                                                 var = var , 
                                                 count = count)
             else:
-                eval_env = NormalizeObservation(gym.make(self.env.spec.id), 
+                eval_env = NormalizeObservation(vector, 
                                                 mean = mean , 
                                                 var = var , 
                                                 count = count)

@@ -141,7 +141,7 @@ class OnPolicyAlgorithm:
                     "policy_loss": policy_loss / epochs,
                     "value_loss": value_loss / epochs, 
                     "entropy": entropy / epochs,
-                    "avg_return": total_return / 10,
+                    "avg_return": total_return.item() / 10,
                     "avd_mean": avd_mean / epochs,
                     "avd_std": avd_std / epochs}
 

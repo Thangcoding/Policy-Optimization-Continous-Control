@@ -1,7 +1,7 @@
 import gymnasium as gym 
 import numpy as np 
 
-class NormalizeObservation(gym.ObservationWrapper):
+class NormalizeObservation(gym.vector.VectorWrapper):
     
     def __init__(self, env, clip = 10.0, mean = None, var = None , count = None):
         super().__init__(env)
