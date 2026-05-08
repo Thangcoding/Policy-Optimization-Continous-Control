@@ -135,14 +135,14 @@ class ContinuousTanhPolicyHead(nn.Module):
 
 class ContinuousPolicyHead(nn.Module):
     """
-    
+    action with hard clip [-1,1]
     """
 
     def __init__(
-        self,
-        feature_dim: int,
-        action_dim: int,
-        log_std_init: float = -0.5,
+        self,                       
+        feature_dim: int,           
+        action_dim: int,            
+        log_std_init: float = -0.5, 
     ):
         super().__init__()
 

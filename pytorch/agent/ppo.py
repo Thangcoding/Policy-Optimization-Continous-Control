@@ -132,20 +132,15 @@ class PPO(OnPolicyAlgorithm):
 
         def eval(self, render = False, stats_observation = None ):
             
-            mean , var , count = stats_observation['mean'], stats_observation['var'], stats_observation['count']
-            vector = get_vec_env(env= self.env, num_envs= 1, type_vector= "Sync", observation_normalize= False)
-            if render:
-
-                eval_env = NormalizeObservation(vector, 
-                                                mean = mean, 
-                                                var = var , 
-                                                count = count)
-            else:
-                eval_env = NormalizeObservation(vector, 
-                                                mean = mean , 
-                                                var = var , 
-                                                count = count)
-
+            eval_env = get_vec_env(env= self.env,
+                                    num_envs= 1,
+                                    type_vector= "Sync",
+                                    observation_normalize= False,
+                                    render = render,
+                                    stats_observation= stats_observation)
+            
+            eval_env.training_mode = False 
+            
             return_val = 0            
             frames = []               
             obs, _ = eval_env.reset() 

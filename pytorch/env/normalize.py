@@ -3,21 +3,21 @@ import numpy as np
 
 class NormalizeObservation(gym.vector.VectorWrapper):
     
-    def __init__(self, env, clip = 10.0, mean = None, var = None , count = None):
+    def __init__(self, env, clip = 10.0, stats_observation = None):
         super().__init__(env)
 
         obs_shape = self.observation_space.shape 
         self.obs_dim = obs_shape[-1]
 
-        if mean is None:
+        if stats_observation is None:
             self.mean = np.zeros(self.obs_dim, dtype = np.float64)
             self.var = np.ones(self.obs_dim, dtype = np.float64)
 
             self.count = 1e-4 
         else:
-            self.mean = mean 
-            self.var = var 
-            self.count = count 
+            self.mean = stats_observation['mean']
+            self.var = stats_observation['var']
+            self.count = stats_observation['count']
 
         self.clip = clip 
 

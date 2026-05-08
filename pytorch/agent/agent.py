@@ -122,9 +122,7 @@ class OnPolicyAlgorithm:
                                     'var': self.vec_env.var, 
                                     'count': self.vec_env.count}
             else:
-                stats_observation = {'mean': None , 
-                                     'var': None, 
-                                     'count': None}
+                stats_observation = None 
             
             total_return = 0 
             for _ in range(10):
@@ -170,6 +168,7 @@ class OffPolicyAlgorithm:
                 gamma: float,
                 use_wandb: bool,
                 warm_up_step: int,
+                observation_normalize: bool, 
                 seed: int,
                 device: torch.device,
                 ):
@@ -179,18 +178,23 @@ class OffPolicyAlgorithm:
         self.type_vector = type_vector
         self.gamma = gamma 
         self.warm_up_step = warm_up_step
+        self.observation_normalize = observation_normalize
 
         self.device = device 
         self.logger = Logger(use_wandb= use_wandb)   
 
         # setup vector env 
-        self.vec_env = VectorEnv(self.env,self.num_envs, self.type_vector)
+        self.vec_env = get_vec_env(env= env,
+                                   num_envs= num_envs,
+                                   type_vector= type_vector,
+                                   observation_normalize= observation_normalize, 
+                                   )
 
         # replay buffer 
         self.replay_buffer = ReplayBuffer(buffer_size=self.buffer_size,
                                           num_envs= self.num_envs,
-                                          observation_space= self.vec_env.observation_space,
-                                          action_space= self.vec_env.action_space, 
+                                          observation_space= self.vec_env.single_observation_space,
+                                          action_space= self.vec_env.single_action_space, 
                                           device= self.device)
            
 
@@ -199,7 +203,7 @@ class OffPolicyAlgorithm:
 
     def train(self):
         raise NotImplementedError
-    
+
     def learn(self, timesteps = 200, episodes = 10):
         render_ratio = max(int(episodes/10),1)
         warm_up_count = 0 
@@ -233,19 +237,29 @@ class OffPolicyAlgorithm:
 
                 total_actor_loss += actor_loss 
                 total_critic_loss += critic_loss 
-            
+
+            if self.observation_normalize:
+                stats_observation = {
+                    'mean': self.vec_env.mean, 
+                    'var': self.vec_env.var, 
+                    'count': self.vec_env.count 
+                }
+            else:
+                stats_observation = None 
+
             # evaluation
             for _ in range(10):
-                frames, return_val = self.eval()
+                frames, return_val = self.eval(stats_observation = stats_observation)
                 total_return += return_val 
 
             logs = {'actor_loss': total_actor_loss/timesteps,
                    'critic_loss': total_critic_loss/timesteps, 
-                   'eval_return': total_return/10}
+                   'eval_return': total_return.item()/10}
             
             # render evaluation 
             if episodes % render_ratio and self.logger.use_wandb:
-                frames, _ = self.eval(render = True)
+                frames, _ = self.eval(render = True,
+                                      stats_observation = stats_observation)
                 self.logger.log_video(frames)
             
             self.logger.set_step(ep)

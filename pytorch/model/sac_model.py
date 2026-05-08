@@ -8,6 +8,17 @@ from ..utils.distributions import DiagGaussianAction
 class Actor(nn.Module):
 
     def __init__(self, obs_dim, action_dim, hidden = 256,log_std_init= -0.5, max_action = 1):
+        '''
+        Action clipped and using change of variable to compute accurately log_prob
+
+                                                z ~ N(μ,σ)
+                                                a = tanh(z) 
+                                            p(a) = p(z) |dz/da|
+                                        log(p(a)) = log(p(z)) - log(|da/dz|)
+                                                = log(p(z)) - log(1 - tanh^{2}(z)) 
+                                                = log(p(z)) - log(1 - a^{2})
+        
+        '''
         super().__init__()
         
         self.net = nn.Sequential(
@@ -51,6 +62,7 @@ class Actor(nn.Module):
         return action, log_prob.unsqueeze(-1)
 
     def get_log_prob(self, obs: torch.tensor , action: torch.tensor):
+
         mean , std = self.forward(obs)
         dist = DiagGaussianAction(mean, std)
 

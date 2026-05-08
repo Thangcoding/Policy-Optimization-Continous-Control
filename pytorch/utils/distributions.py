@@ -45,10 +45,8 @@ class CategoricalAction(ActionDistribution):
         return self.dist.mode
 
 class DiagGaussianAction(ActionDistribution):
-
     ''' 
     used for continuous action (spaces.box type)
-
     '''
     
     def __init__(self, mean : torch.tensor , std : torch.tensor):

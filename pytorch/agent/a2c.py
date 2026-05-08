@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F 
 import gymnasium as gym  
+from ..env.vectorize_env import get_vec_env
 from .agent import OnPolicyAlgorithm  
 from ..utils.feature_extractor import BaseFeatureExtractor
 from ..utils.seed import set_seed
@@ -24,6 +25,7 @@ class A2C(OnPolicyAlgorithm):
                 batch_size: int = 64,
                 seed: int = 64, 
                 use_wandb: bool = False,     
+                observation_normalize: bool = False, 
                 advantage_normalize: bool = False, 
                 ):
         
@@ -34,6 +36,7 @@ class A2C(OnPolicyAlgorithm):
                         learning_rate,  
                         n_rollout_steps,
                         type_vector,
+                        observation_normalize, 
                         gamma,
                         gae_lambda, 
                         use_wandb,
@@ -42,6 +45,7 @@ class A2C(OnPolicyAlgorithm):
 
         self.ent_coef = ent_coef
         self.vf_coef = vf_coef 
+        self.observation_normalize = observation_normalize
         self.advantage_normalize = advantage_normalize
         self.max_step_eval = max_step_eval
         self.batch_size = batch_size
@@ -109,12 +113,15 @@ class A2C(OnPolicyAlgorithm):
 
         return logs  
 
-    def eval(self, render = False):
+    def eval(self, render = False, stats_observation = None):
+        eval_env = get_vec_env(env= self.env,
+                        num_envs= 1,
+                        type_vector= "Sync",
+                        observation_normalize= False,
+                        render = render,
+                        stats_observation= stats_observation)
         
-        if render:
-            eval_env = gym.make(self.env.spec.id, render_mode = "rgb_array")
-        else:
-            eval_env = gym.make(self.env.spec.id)
+        eval_env.training_mode = False 
         
         return_val = 0 
         frames = []
@@ -164,6 +171,7 @@ if __name__ == '__main__':
                                      nn.ReLU(),
                                      nn.Linear(64, feature_dim),
                                      )
+            
         def forward(self, obs: torch.tensor):
             return self.net(obs)
         
@@ -174,12 +182,15 @@ if __name__ == '__main__':
                 feature_network=net,
                 feature_dim=128,
                 device= device,
+                batch_size= 64,
                 n_rollout_steps=50,
                 type_vector='Sync',
                 learning_rate= 1e-5,
                 gamma = 0.99,
                 gae_lambda = 0.95,
+                advantage_normalize= True, 
+                observation_normalize= True, 
                 use_wandb=False
                 )
     
-    model.learn(episodes= 3)
+    model.learn(episodes= 20, epochs =1 )

@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn 
 import torch.nn.functional as F 
 import gymnasium as gym 
+from ..env.vectorize_env import get_vec_env
 from ..utils.seed import set_seed
 from ..utils.feature_extractor import BaseFeatureExtractor
 from ..model.deterministic_model import Actor , Critic
@@ -24,6 +25,7 @@ class DDPG(OffPolicyAlgorithm):
                  tau: float = 0.005, 
                  warm_up_step: int = 300, 
                  seed: int = 64, 
+                 observation_normalize: bool = False, 
                  use_wandb: bool = False, 
                  ):
         super().__init__(env, 
@@ -33,6 +35,7 @@ class DDPG(OffPolicyAlgorithm):
                          gamma,
                          use_wandb,
                          warm_up_step,
+                         observation_normalize, 
                          seed,
                          device)
 
@@ -51,8 +54,8 @@ class DDPG(OffPolicyAlgorithm):
         self.set_model()
 
     def set_model(self):
-        obs_dim = self.vec_env.observation_space.shape[0]
-        action_dim = self.vec_env.action_space.shape[0]
+        obs_dim = self.vec_env.single_observation_space.shape[0]
+        action_dim = self.vec_env.single_action_space.shape[0]
 
         self.actor = Actor(obs_dim = obs_dim,
                            action_dim= action_dim).to(self.device)
@@ -130,12 +133,15 @@ class DDPG(OffPolicyAlgorithm):
                 self.tau * param.data + (1 - self.tau)*target_param.data
             )
 
-    def eval(self, render=False):
-
-        if render:
-            eval_env = gym.make(self.env.spec.id, render_mode="rgb_array")
-        else:
-            eval_env = gym.make(self.env.spec.id)
+    def eval(self, render=False, stats_observation = None):
+        eval_env = get_vec_env(env= self.env,
+                            num_envs= 1,
+                            type_vector= "Sync",
+                            observation_normalize= False,
+                            render = render,
+                            stats_observation= stats_observation)
+        
+        eval_env.training_mode = False 
 
         frames = []
         obs, _ = eval_env.reset()
@@ -172,7 +178,7 @@ class DDPG(OffPolicyAlgorithm):
         return frames, return_val
 
 if __name__ == '__main__':
-    env = gym.make("Hopper-v4")
+    env = gym.make("Hopper-v5")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = DDPG(env=env,
@@ -183,6 +189,7 @@ if __name__ == '__main__':
                  buffer_size=100000,
                  type_vector="Asyn",
                  max_step_eval=1000,
+                observation_normalize= True
             )
 
     model.learn()

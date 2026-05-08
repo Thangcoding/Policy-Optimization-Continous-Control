@@ -7,7 +7,10 @@ from .normalize import NormalizeObservation
 def get_vec_env(env: gym.Env,
                 num_envs: int = 4, 
                 type_vector: str = "Async", 
-                observation_normalize: bool = True 
+                observation_normalize: bool = True, 
+                stats_observation = None, 
+                render: bool = False 
+
                 ):
 
     '''
@@ -21,7 +24,7 @@ def get_vec_env(env: gym.Env,
 
     def make_env():
         def _init():
-            e = gym.make(env.spec.id)
+            e = gym.make(env.spec.id, render_mode = "rgb_array") if render else gym.make(env.spec.id)
             return e 
         return _init
     
@@ -33,10 +36,8 @@ def get_vec_env(env: gym.Env,
         vector = SyncVectorEnv(env_fns) 
     
     if observation_normalize:
-        vec_env = NormalizeObservation(vector)
+        vec_env = NormalizeObservation(vector, stats_observation)
     else:
         vec_env = vector
     
     return vec_env
-
-
