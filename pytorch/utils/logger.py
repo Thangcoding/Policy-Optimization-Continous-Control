@@ -11,7 +11,7 @@ class Logger:
         os.makedirs(log_dir, exist_ok=True)
         self.file = open(os.path.join(log_dir, "log.jsonl"), "a")
 
-        if use_wandb:
+        if  use_wandb:
             import wandb
             wandb.init(project=project, name=name)
             self.wandb = wandb
@@ -34,8 +34,8 @@ class Logger:
         if not self.use_wandb:
             return
 
-        video = np.array(frames)           # (T, H, W, C)
-        video = video.transpose(0, 3, 1, 2)  # (T, C, H, W)
+        video = np.array(frames)           # (T,1, H, W, C)
+        video = video.squeeze(1).transpose(0, 3, 1, 2)  # (T, C, H, W)
 
         self.wandb.log({
             "video": self.wandb.Video(video, fps=fps, format="mp4")

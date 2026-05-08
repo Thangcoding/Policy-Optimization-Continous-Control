@@ -174,7 +174,7 @@ class PPO(OnPolicyAlgorithm):
         
 if __name__ == '__main__':
     # test 
-    env = gym.make("Hopper-v4")
+    env = gym.make("Hopper-v5")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = PPO(env = env,
@@ -187,7 +187,7 @@ if __name__ == '__main__':
                 learning_rate= 1e-5,
                 gamma = 0.99,
                 gae_lambda = 0.95,
-                use_wandb=False,
+                use_wandb= True ,
                 advantage_normalize=True
                 )
     
