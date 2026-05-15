@@ -3,11 +3,10 @@ import torch
 import torch.nn as nn 
 import torch.nn.functional as F 
 import gymnasium as gym 
-from ..env.vectorize_env import get_vec_env
-from ..utils.seed import set_seed
-from ..utils.feature_extractor import BaseFeatureExtractor
-from ..model.deterministic_model import Actor , Critic
-from .agent import OffPolicyAlgorithm
+from ...env.vectorize_env import get_vec_env
+from ...utils.seed import set_seed
+from .model import Actor , Critic
+from ..policy import OffPolicyAlgorithm
 
 
 class DDPG(OffPolicyAlgorithm):
@@ -79,6 +78,7 @@ class DDPG(OffPolicyAlgorithm):
     def select_action(self,obs: torch.tensor,
                         noise_std: float = 0.1,
                         deterministic: bool = False):
+        
         obs = obs.unsqueeze(0)
         with torch.no_grad(): 
             action = self.actor(obs).cpu().numpy()[0]
@@ -90,6 +90,9 @@ class DDPG(OffPolicyAlgorithm):
         return np.clip(action,-1,1)
 
     def train(self, step ):
+        
+        self.actor.train()
+        self.critic.train()
 
         sample = self.replay_buffer.sample(batch_size=self.batch_size)
         obs, action, reward, next_obs, done = sample['obs'], sample['action'], sample['reward'], sample['next_obs'], sample['done']
@@ -182,14 +185,14 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = DDPG(env=env,
-                 num_envs=4,
-                 device= device,
-                 actor_lr= 3e-4,
-                 critic_lr= 1e-4,
-                 buffer_size=100000,
-                 type_vector="Asyn",
-                 max_step_eval=1000,
+                num_envs=4,
+                device= device,
+                actor_lr= 3e-4,
+                critic_lr= 1e-4,
+                buffer_size=100000,
+                type_vector="Asyn",
+                max_step_eval=1000,
                 observation_normalize= True
             )
 
-    model.learn()
+    model.learn(episodes = 1, timesteps= 300)

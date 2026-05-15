@@ -5,10 +5,10 @@ import torch
 
 class Logger:
     def __init__(self, use_wandb=False, project="rl-policy-gradient", name=None, log_dir="logs"):
-        self.use_wandb = use_wandb
-        self.step = 0
+        self.use_wandb = use_wandb                     
+        self.step = 0                                   
 
-        os.makedirs(log_dir, exist_ok=True)
+        os.makedirs(log_dir, exist_ok=True)             
         self.file = open(os.path.join(log_dir, "log.jsonl"), "a")
 
         if  use_wandb:

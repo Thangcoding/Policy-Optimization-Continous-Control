@@ -2,11 +2,11 @@ import numpy as np
 import torch 
 import torch.nn.functional as F 
 import gymnasium as gym 
-from ..env.vectorize_env import get_vec_env
-from ..utils.seed import set_seed
-from ..utils.feature_extractor import BaseFeatureExtractor
-from ..model.deterministic_model import Actor , Critic
-from .agent import OffPolicyAlgorithm
+from ...env.vectorize_env import get_vec_env
+from ...utils.seed import set_seed
+from ...utils.feature_extractor import BaseFeatureExtractor
+from .model import Actor , Critic
+from ..policy import OffPolicyAlgorithm
 
 
 class TD3(OffPolicyAlgorithm):
@@ -30,6 +30,7 @@ class TD3(OffPolicyAlgorithm):
                  seed: int = 64, 
                  use_wandb: bool = False,
                  ): 
+        
         super().__init__(env, 
                          num_envs,
                          buffer_size,

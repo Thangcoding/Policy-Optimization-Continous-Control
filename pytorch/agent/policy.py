@@ -4,17 +4,12 @@ import gymnasium as gym
 from gymnasium import spaces
 from ..env.vectorize_env import  get_vec_env
 from ..env.rollout_buffer import RolloutBuffer 
-from ..env.replay_buffer import ReplayBuffer
-from ..model.stochastic_model import ActorCritic
-from ..utils.feature_extractor import BaseFeatureExtractor
+from ..env.replay_buffer import ReplayBuffer   
 from ..utils.logger import Logger 
 
 class OnPolicyAlgorithm:
     def __init__(self,env : gym.Env,
                 num_envs: int,
-                feature_network: str | type[BaseFeatureExtractor],
-                feature_dim: int,  
-                learning_rate: float, 
                 n_rollout_steps: int, 
                 type_vector: str,  
                 observation_normalize: bool,
@@ -40,18 +35,18 @@ class OnPolicyAlgorithm:
         # setup vector env 
         self.vec_env = get_vec_env(env, num_envs, type_vector, observation_normalize)
         
-        # setup_model 
-        self.agent = ActorCritic(feature_network, self.vec_env.single_observation_space, self.vec_env.single_action_space, feature_dim).to(device)
-
         # setup rollout 
         self.rollout_buffer = RolloutBuffer(buffer_size = n_rollout_steps, 
                                             num_envs = num_envs, 
                                             observation_space = self.vec_env.single_observation_space, 
                                             action_space = self.vec_env.single_action_space, 
                                             device = device)
-
-        # optimizer 
-        self.optimizer = torch.optim.Adam(self.agent.parameters(),lr = learning_rate)
+    
+    def set_model(self):
+        raise NotImplementedError
+    
+    def predict(self):
+        raise NotImplementedError
 
     def collect_rollouts(self):
         self.rollout_buffer.reset()
@@ -61,9 +56,8 @@ class OnPolicyAlgorithm:
         for _ in range(self.n_rollout_steps):
             obs_tensor = torch.tensor(obs, dtype=torch.float32).to(self.device)
 
-
             with torch.no_grad():
-                action, log_prob , value = self.agent.predict(obs_tensor)
+                action, log_prob , value = self.predict(obs_tensor)
 
             action_np = action.cpu().numpy()
 
@@ -85,7 +79,7 @@ class OnPolicyAlgorithm:
         # bootstrap value  
         obs_tensor = torch.tensor(obs, dtype = torch.float32).to(self.device)
         with torch.no_grad(): 
-            _, _, last_value = self.agent.predict(obs_tensor)
+            _, _, last_value = self.predict(obs_tensor)
             last_value = last_value.cpu().numpy()
 
         # mask done 
@@ -103,18 +97,17 @@ class OnPolicyAlgorithm:
         for ep in range(episodes):
             self.collect_rollouts()
 
-            loss, policy_loss , value_loss , entropy , avd_mean, avd_std = 0, 0, 0, 0, 0, 0
+            policy_loss , value_loss , entropy , avd_mean, avd_std = 0, 0, 0, 0, 0
 
             # train
             for _ in range(epochs):
                 batch_logs = self.train()
 
-                loss += batch_logs['loss']
                 policy_loss += batch_logs['policy_loss']
                 value_loss += batch_logs['value_loss']
                 entropy += batch_logs['entropy']
                 avd_mean += batch_logs['adv_mean']
-                avd_std += batch_logs['adv_std']
+                avd_std += batch_logs['adv_std']      
 
             # evaluation 
             if self.observation_normalize:
@@ -135,8 +128,7 @@ class OnPolicyAlgorithm:
                 self.logger.log_video(frames)
 
             # log store 
-            logs = {"loss": loss / epochs,
-                    "policy_loss": policy_loss / epochs,
+            logs = {"policy_loss": policy_loss / epochs,
                     "value_loss": value_loss / epochs, 
                     "entropy": entropy / epochs,
                     "avg_return": total_return.item() / 10,
@@ -232,7 +224,7 @@ class OffPolicyAlgorithm:
                 # warmup 
                 if warm_up_count < self.warm_up_step:
                     continue  
-
+                
                 critic_loss , actor_loss = self.train(step)
 
                 total_actor_loss += actor_loss 

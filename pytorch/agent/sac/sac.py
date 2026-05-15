@@ -2,11 +2,11 @@ import numpy as np
 import torch 
 import torch.nn.functional as F 
 import gymnasium as gym 
-from ..env.vectorize_env import get_vec_env
-from ..utils.seed import set_seed
-from ..utils.feature_extractor import BaseFeatureExtractor
-from ..model.sac_model import Actor , Critic
-from .agent import OffPolicyAlgorithm
+from ...env.vectorize_env import get_vec_env
+from ...utils.seed import set_seed
+from ...utils.feature_extractor import BaseFeatureExtractor
+from .model import Actor , Critic
+from ..policy import OffPolicyAlgorithm
 
 class SAC(OffPolicyAlgorithm):
 
@@ -62,7 +62,7 @@ class SAC(OffPolicyAlgorithm):
 
         self.actor = Actor(obs_dim=obs_dim,
                            action_dim= action_dim).to(self.device)
-        
+
         self.lst_critic = []
         self.lst_critic_target = []
 
@@ -73,14 +73,14 @@ class SAC(OffPolicyAlgorithm):
             critic_target.load_state_dict(critic.state_dict())
             self.lst_critic.append(critic)
             self.lst_critic_target.append(critic_target)
-        
+
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr = self.actor_lr)
 
         self.lst_critic_optimizer = []
         for i in range(self.num_critics):
             critic_optimizer = torch.optim.Adam(self.lst_critic[i].parameters(), lr = self.critic_lr)
             self.lst_critic_optimizer.append(critic_optimizer)
-        
+
         if self.auto_entropy:
             self.log_alpha = torch.zeros(1, requires_grad = True, device = self.device)
             self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr = self.alpha_lr)

@@ -1,9 +1,7 @@
 import torch  
 import torch.nn as nn  
 import numpy as np 
-from .deterministic_model import  Critic 
-from .stochastic_model import ContinuousTanhPolicyHead 
-from ..utils.distributions import DiagGaussianAction 
+from torch.distributions import Normal 
 
 class Actor(nn.Module):
 
@@ -41,38 +39,44 @@ class Actor(nn.Module):
 
         return mean , std 
     
+    def get_dist(self, obs: torch.tensor):
+        mean , std = self.forward(obs)
+        return Normal(mean, std)
+    
     def sample(self, obs: torch.tensor,
                 deterministic_bool : bool = False):
         
-        mean, std = self.forward(obs)
-        dist = DiagGaussianAction(mean, std)
+        dist = self.get_dist(obs)
         
         if deterministic_bool: 
             z = dist.mean 
         else:
-            z = dist.sample(reparam_trick_bool = True)
+            z = dist.rsample()
 
         action = torch.tanh(z) 
 
         # compute log_prob 
         log_prob = dist.log_prob(z)
+     
+        log_prob = log_prob - torch.sum(torch.log(1 - action.pow(2) + 1e-6))
 
-        log_prob = log_prob - torch.sum(torch.log(1 - action.pow(2) + 1e-6), dim = -1)
+        log_prob = log_prob.sum(dim = -1)
 
         return action, log_prob.unsqueeze(-1)
 
     def get_log_prob(self, obs: torch.tensor , action: torch.tensor):
 
-        mean , std = self.forward(obs)
-        dist = DiagGaussianAction(mean, std)
+        dist = self.get_dist(obs)
 
-        z = dist.sample(reparam_trick_bool= True)
+        z = dist.rsample()
 
         action = torch.tanh(z) 
 
         # compute log_prob 
         log_prob = dist.log_prob(z)
-        log_prob = log_prob - torch.sum(torch.log(1 - action.pow(2) + 1e-6), dim = -1)
+        log_prob = log_prob - torch.sum(torch.log(1 - action.pow(2) + 1e-6))
+
+        log_prob = log_prob.sum(dim = -1)
 
         return log_prob.unsqueeze(-1)
 

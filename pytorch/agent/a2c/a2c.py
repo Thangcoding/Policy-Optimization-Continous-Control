@@ -2,10 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F 
 import gymnasium as gym  
-from ..env.vectorize_env import get_vec_env
-from .agent import OnPolicyAlgorithm  
-from ..utils.feature_extractor import BaseFeatureExtractor
-from ..utils.seed import set_seed
+from ...env.vectorize_env import get_vec_env
+from .model import ActorCritic
+from ..policy import OnPolicyAlgorithm  
+from ...utils.feature_extractor import BaseFeatureExtractor
+from ...utils.seed import set_seed
 
 class A2C(OnPolicyAlgorithm): 
 
@@ -30,10 +31,7 @@ class A2C(OnPolicyAlgorithm):
                 ):
         
         super().__init__(env, 
-                        num_envs, 
-                        feature_network, 
-                        feature_dim,
-                        learning_rate,  
+                        num_envs,   
                         n_rollout_steps,
                         type_vector,
                         observation_normalize, 
@@ -49,17 +47,34 @@ class A2C(OnPolicyAlgorithm):
         self.advantage_normalize = advantage_normalize
         self.max_step_eval = max_step_eval
         self.batch_size = batch_size
-
+        self.feature_network = feature_network
+        self.feature_dim = feature_dim
+        self.learning_rate = learning_rate
+        
+        self.set_model()
         set_seed(seed)
+    
+    def set_model(self):
+        # setup_model 
+        self.agent = ActorCritic(self.feature_network,
+                                       self.vec_env.single_observation_space,
+                                       self.vec_env.single_action_space,
+                                       self.feature_dim).to(self.device)
+        
+        # optimizer 
+        self.optimizer = torch.optim.Adam(self.agent.parameters(),lr = self.learning_rate)
+    def predict(self, obs_features : torch.tensor, deterministic_bool: bool = False): 
 
+        action, log_prob, value = self.agent.predict(obs_features, deterministic_bool)
+
+        return action, log_prob , value 
+    
     def train(self) -> None:
 
         self.agent.train()
-        total_loss = 0 
         total_policy_loss = 0 
         total_value_loss = 0 
         total_entropy = 0 
-        total_return = 0 
         mean_advantage , std_advantage = 0, 0 
         n_batches = 0
         for batch in self.rollout_buffer.batch_data(batch_size = self.batch_size): 
@@ -93,7 +108,6 @@ class A2C(OnPolicyAlgorithm):
             self.optimizer.step()
             
             # accumulate 
-            total_loss += loss.item()
             total_policy_loss += policy_loss.item()
             total_value_loss += value_loss.item()
             total_entropy += -entropy_mean.item()
@@ -103,7 +117,6 @@ class A2C(OnPolicyAlgorithm):
         
         # logger store 
         logs = {
-                "loss": total_loss / n_batches,
                 "policy_loss": total_policy_loss / n_batches,
                 "value_loss": total_value_loss / n_batches,
                 "entropy": total_entropy / n_batches,
@@ -142,7 +155,7 @@ class A2C(OnPolicyAlgorithm):
             )
             
             with torch.no_grad():
-                action, _, _ = self.agent.predict(obs_tensor, deterministic_bool = True)
+                action, _, _ = self.predict(obs_tensor, deterministic_bool = True)
             
             obs, reward , terminated, truncated, _ = eval_env.step(action.cpu().numpy())
 
