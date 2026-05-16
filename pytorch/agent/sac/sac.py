@@ -87,7 +87,7 @@ class SAC(OffPolicyAlgorithm):
 
     def select_action(self, obs: torch.tensor, deterministic: bool = False):
         with torch.no_grad():
-            action,_ = self.actor.sample(obs, deterministic)
+            action,_ = self.actor.sample_action(obs, deterministic)
         return action.cpu().numpy()
         
     def train(self, step):
@@ -100,7 +100,7 @@ class SAC(OffPolicyAlgorithm):
         #================================ 
 
         with torch.no_grad():
-            next_action, next_log_prob = self.actor.sample(next_obs)
+            next_action, next_log_prob = self.actor.sample_action(next_obs)
 
             q_next_list = [critic_target(next_obs, next_action) for critic_target in self.lst_critic_target]
 
@@ -128,7 +128,7 @@ class SAC(OffPolicyAlgorithm):
         # Actor Update 
         #===================
 
-        new_action ,  log_prob = self.actor.sample(obs)
+        new_action ,  log_prob = self.actor.sample_action(obs)
 
         q_new_list = [critic(obs, new_action) for critic in self.lst_critic]
 

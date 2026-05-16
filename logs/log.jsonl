@@ -432,3 +432,15 @@
 {"policy_loss": 0.0003715219907462597, "value_loss": 48.9565013885498, "entropy": 2.7606950998306274, "avg_return": 184.98660080782201, "avd_mean": -9.313225746154785e-09, "avd_std": 0.9999999940395355, "episode": 7}
 {"policy_loss": 0.00014030644670128822, "value_loss": 61.74172668457031, "entropy": 2.7611878633499147, "avg_return": 182.91269525096382, "avd_mean": -1.2945383787155152e-08, "avd_std": 0.9999999880790711, "episode": 8}
 {"policy_loss": 1.399465836584568e-05, "value_loss": 35.96302919387817, "entropy": 2.7616708993911745, "avg_return": 205.3175953293046, "avd_mean": 1.46450474858284e-08, "avd_std": 0.9999999940395355, "episode": 9}
+{"actor_loss": 0.0, "critic_loss": 0.0, "eval_return": 7.393216670523232, "episode": 0}
+{"actor_loss": 0.0, "critic_loss": 0.0, "eval_return": 11.521379906749063, "episode": 0}
+{"actor_loss": 0.0, "critic_loss": 0.0, "eval_return": 15.670885790583426, "episode": 0}
+{"actor_loss": -1.6633114171028138, "critic_loss": 0.04765340673271567, "eval_return": 52.15003288565556, "episode": 1}
+{"actor_loss": -3.5900293731689454, "critic_loss": 0.040500300852581855, "eval_return": 73.45607782758127, "episode": 2}
+{"actor_loss": -4.799415884017944, "critic_loss": 0.04160756414756179, "eval_return": 5.827689568200656, "episode": 3}
+{"actor_loss": -5.868392343521118, "critic_loss": 0.06706779011525214, "eval_return": 3.487717217302299, "episode": 4}
+{"actor_loss": -7.406281418800354, "critic_loss": 0.0786911643203348, "eval_return": 3.025117976111263, "episode": 5}
+{"actor_loss": -9.432497282028198, "critic_loss": 0.10020591471344233, "eval_return": 2.21779168176011, "episode": 6}
+{"actor_loss": -12.8056365776062, "critic_loss": 0.18557489696890117, "eval_return": 1.7463247865727063, "episode": 7}
+{"actor_loss": -16.665597171783446, "critic_loss": 0.22983784656971692, "eval_return": 2.0759022349311524, "episode": 8}
+{"actor_loss": -20.567797784805297, "critic_loss": 0.4586452513933182, "eval_return": 1.2341810630840429, "episode": 9}
