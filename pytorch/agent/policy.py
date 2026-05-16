@@ -232,7 +232,6 @@ class OffPolicyAlgorithm:
                 # warmup 
                 if warm_up_count < self.warm_up_step:
                     warm_up_count += 1 
-                    continue  
                 
                 critic_loss , actor_loss = self.train(step)
 
