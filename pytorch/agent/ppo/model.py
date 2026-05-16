@@ -36,6 +36,10 @@ class Actor(nn.Module):
         self.mean = nn.Linear(hidden, action_dim)
         self.log_std = nn.Parameter(torch.ones(action_dim)* log_std_init)
 
+    def _init_weights(self):
+        nn.init.orthogonal_(self.mean.weight, gain=0.01)
+        nn.init.constant_(self.mean.bias, 0.0)
+    
     def get_dist(self, obs_features):
         mean , std = self.forward(obs_features)
         return Normal(mean, std)

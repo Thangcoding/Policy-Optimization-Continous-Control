@@ -136,7 +136,7 @@ class PPO(OnPolicyAlgorithm):
             self.actor_optimizer.step()
 
             # critic loss 
-            critic_loss =  self.vf_coef * value_loss 
+            critic_loss = value_loss 
             
             # actor optimization step     
             self.critic_optimizer.zero_grad()
