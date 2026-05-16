@@ -13,6 +13,18 @@ class Actor(nn.Module):
                  hidden = 256,
                  log_std_init = -0.5,
                  ):
+        '''
+        Action clipped and using change of variable to compute accurately log_prob
+
+                                                z ~ N(μ,σ)
+                                                a = tanh(z) 
+                                            p(a) = p(z) |dz/da|
+                                        log(p(a)) = log(p(z)) - log(|da/dz|)
+                                                = log(p(z)) - log(1 - tanh^{2}(z)) 
+                                                = log(p(z)) - log(1 - a^{2})
+        
+        '''
+
         super().__init__()
 
         self.action_dim = action_dim
@@ -44,18 +56,33 @@ class Actor(nn.Module):
         if deterministic_bool:
             raw_action = dist.mean 
         else:
-            raw_action = dist.rsample()
+            raw_action = dist.sample()
 
         # bounded action 
-        action = torch.clamp(raw_action, -1.0, 1.0)
+        action = torch.tanh(raw_action)
 
+        # change of variable 
         log_prob = dist.log_prob(raw_action).sum(dim = -1)
+
+        log_prob = log_prob - torch.sum(torch.log(1 - action.pow(2) + 1e-6), dim = -1)
 
         return action, log_prob
 
     def get_log_prob(self,obs_features, action):
         dist = self.get_dist(obs_features)
-        return dist.log_prob(action).sum(dim = -1)
+
+        # raw action 
+        action = torch.clamp(action, -1 + 1e-6, 1 - 1e-6)
+        raw_action = torch.atanh(action)
+
+        # inverse change of variable 
+        log_prob = dist.log_prob(raw_action).sum(dim = -1)
+
+        correction = torch.sum(torch.log(1 - action.pow(2) + 1e-6),dim = -1)
+
+        log_prob = log_prob - correction
+
+        return log_prob
 
     def get_entropy(self, obs_features):
         dist = self.get_dist(obs_features)

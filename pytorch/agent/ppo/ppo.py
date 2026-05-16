@@ -107,7 +107,7 @@ class PPO(OnPolicyAlgorithm):
             log_prob_new = self.actor.get_log_prob(obs, action)
             entropy = self.actor.get_entropy(obs)
 
-            value = self.critic(obs)
+            value = self.critic(obs).squeeze(-1)
 
             # surrogate objective 
             ratio = torch.exp(log_prob_new - log_prob_old)
@@ -116,7 +116,7 @@ class PPO(OnPolicyAlgorithm):
             
             # policy loss
             policy_loss =  torch.mean(torch.min(surr1, surr2))
-
+    
             # critic loss with value clip                                                       
             value_pred_clip = value_old + torch.clamp(value - value_old,-self.clip_value , self.clip_value)  
             value_loss_1 = (value - return_value)**2                                                         
@@ -141,7 +141,7 @@ class PPO(OnPolicyAlgorithm):
             # actor optimization step     
             self.critic_optimizer.zero_grad()
             critic_loss.backward()
-            nn.utils.clip_grad_norm_(self.actor.parameters(), 0.5)
+            nn.utils.clip_grad_norm_(self.critic.parameters(), 0.5)
             self.critic_optimizer.step()
 
             # accumulate 
@@ -213,7 +213,7 @@ if __name__ == '__main__':
 
     model = PPO(env = env,
                 num_envs=4,
-                feature_dim=128,
+                feature_dim=64,
                 device= device,
                 n_rollout_steps=50,
                 type_vector='Sync',
@@ -222,7 +222,8 @@ if __name__ == '__main__':
                 gamma = 0.99,
                 gae_lambda = 0.95,
                 use_wandb= False,
-                advantage_normalize=True
+                advantage_normalize=True, 
+                observation_normalize= True,
                 )
     
-    model.learn(episodes= 10, epochs= 5)
+    model.learn(episodes= 40, epochs= 10)

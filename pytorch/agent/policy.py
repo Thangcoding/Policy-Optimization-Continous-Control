@@ -51,6 +51,8 @@ class OnPolicyAlgorithm:
     def collect_rollouts(self):
         self.rollout_buffer.reset()
 
+        self.vec_env.training_mode = True 
+        
         obs , _ = self.vec_env.reset(seed = self.seed)
 
         for _ in range(self.n_rollout_steps):
