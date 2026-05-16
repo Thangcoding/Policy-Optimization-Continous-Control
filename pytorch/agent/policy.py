@@ -216,7 +216,8 @@ class OffPolicyAlgorithm:
                 obs , _ = self.vec_env.reset(seed = [self.seed + i for i in range(self.num_envs)])
                 obs_tensor = torch.tensor(obs, dtype = torch.float32).to(self.device)
                 action  = self.select_action(obs = obs_tensor,
-                                            step = warm_up_count)
+                                            step = warm_up_count,
+                                            warm_up = True)
 
                 next_obs, reward, terminated , truncated, _ = self.vec_env.step(action)
 

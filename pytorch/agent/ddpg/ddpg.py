@@ -84,9 +84,10 @@ class DDPG(OffPolicyAlgorithm):
     def select_action(self,obs: torch.tensor,
                         step: int, 
                         noise_std: float = 0.1,
-                        deterministic: bool = False):
+                        deterministic: bool = False,
+                        warm_up : bool = False):
         
-        if step < self.warm_up_step and not deterministic:
+        if  warm_up and step < self.warm_up_step and not deterministic:
             action = np.array([self.vec_env.single_action_space.sample() for _ in range(self.num_envs)])
             return action
 
