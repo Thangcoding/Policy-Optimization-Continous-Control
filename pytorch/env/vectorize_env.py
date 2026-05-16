@@ -9,7 +9,8 @@ def get_vec_env(env: gym.Env,
                 type_vector: str = "Async", 
                 observation_normalize: bool = True, 
                 stats_observation = None, 
-                render: bool = False 
+                render: bool = False, 
+                seed : int = 64
 
                 ):
 
@@ -22,13 +23,15 @@ def get_vec_env(env: gym.Env,
                     - Sync (sequential vector)
     '''
 
-    def make_env():
+    def make_env(i):
         def _init():
             e = gym.make(env.spec.id, render_mode = "rgb_array") if render else gym.make(env.spec.id)
+            e.reset(seed = seed + i)
+            e.action_space.seed(seed + i)
             return e 
         return _init
     
-    env_fns = [make_env() for _ in range(num_envs)]
+    env_fns = [make_env(i) for i in range(num_envs)]
 
     if type_vector == "Async":
         vector = AsyncVectorEnv(env_fns)

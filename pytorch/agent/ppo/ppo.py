@@ -170,13 +170,14 @@ class PPO(OnPolicyAlgorithm):
                                 type_vector= "Sync",
                                 observation_normalize= False,
                                 render = render,
-                                stats_observation= stats_observation)
+                                stats_observation= stats_observation,
+                                seed= self.seed)
         
         eval_env.training_mode = False 
         
         return_val = 0            
         frames = []               
-        obs, _ = eval_env.reset() 
+        obs, _ = eval_env.reset(seed = self.seed) 
 
         return_val = 0.0 
 

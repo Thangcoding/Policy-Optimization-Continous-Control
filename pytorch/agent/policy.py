@@ -33,7 +33,11 @@ class OnPolicyAlgorithm:
         self.logger = Logger(use_wandb= use_wandb)
 
         # setup vector env 
-        self.vec_env = get_vec_env(env, num_envs, type_vector, observation_normalize)
+        self.vec_env = get_vec_env(env = env,
+                                    num_envs = num_envs,
+                                    type_vector = type_vector,
+                                    observation_normalize = observation_normalize,
+                                    seed= seed)
         
         # setup rollout 
         self.rollout_buffer = RolloutBuffer(buffer_size = n_rollout_steps, 
@@ -53,7 +57,7 @@ class OnPolicyAlgorithm:
 
         self.vec_env.training_mode = True 
         
-        obs , _ = self.vec_env.reset(seed = self.seed)
+        obs , _ = self.vec_env.reset(seed = [self.seed + i for i in range(self.num_envs)])
 
         for _ in range(self.n_rollout_steps):
             obs_tensor = torch.tensor(obs, dtype=torch.float32).to(self.device)
