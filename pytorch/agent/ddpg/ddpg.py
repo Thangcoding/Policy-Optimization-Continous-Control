@@ -15,6 +15,7 @@ class DDPG(OffPolicyAlgorithm):
                  num_envs: int, 
                  device: torch.device,
                  batch_size: int = 64, 
+                 hidden : int = 256,
                  actor_lr:float = 1e-4,
                  critic_lr:float = 1e-3, 
                  buffer_size: int = 100000,
@@ -22,7 +23,7 @@ class DDPG(OffPolicyAlgorithm):
                  max_step_eval: int = 1000, 
                  gamma: float = 0.99, 
                  tau: float = 0.005, 
-                 warm_up_step: int = 300, 
+                 warm_up_step: int = 3000, 
                  seed: int = 64, 
                  observation_normalize: bool = False, 
                  use_wandb: bool = False, 
@@ -44,6 +45,7 @@ class DDPG(OffPolicyAlgorithm):
         self.num_envs = num_envs
         self.max_step_eval = max_step_eval
         self.batch_size = batch_size
+        self.hidden = hidden 
 
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr 
@@ -57,17 +59,21 @@ class DDPG(OffPolicyAlgorithm):
         action_dim = self.vec_env.single_action_space.shape[0]
 
         self.actor = Actor(obs_dim = obs_dim,
-                           action_dim= action_dim).to(self.device)
+                           action_dim= action_dim,
+                           hidden= self.hidden).to(self.device)
         
         self.critic = Critic(obs_dim= obs_dim, 
-                             action_dim= action_dim).to(self.device)
+                             action_dim= action_dim,
+                             hidden= self.hidden).to(self.device)
         
         # target actor critic 
         self.target_actor = Actor(obs_dim= obs_dim, 
-                                  action_dim= action_dim).to(self.device)
+                                  action_dim= action_dim,
+                                  hidden= self.hidden).to(self.device)
         
         self.target_critic = Critic(obs_dim= obs_dim,
-                                    action_dim= action_dim).to(self.device)
+                                    action_dim= action_dim,
+                                    hidden= self.hidden).to(self.device)
         
         self.target_actor.load_state_dict(self.actor.state_dict())
         self.target_critic.load_state_dict(self.critic.state_dict())
@@ -147,7 +153,7 @@ class DDPG(OffPolicyAlgorithm):
         eval_env.training_mode = False 
 
         frames = []
-        obs, _ = eval_env.reset()
+        obs, _ = eval_env.reset(seed = self.seed)
 
         return_val = 0.0
 
@@ -191,6 +197,7 @@ if __name__ == '__main__':
                 critic_lr= 1e-4,
                 buffer_size=100000,
                 type_vector="Asyn",
+                warm_up_step= 10, 
                 max_step_eval=1000,
                 observation_normalize= True
             )

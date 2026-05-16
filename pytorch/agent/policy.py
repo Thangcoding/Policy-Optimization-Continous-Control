@@ -175,6 +175,7 @@ class OffPolicyAlgorithm:
         self.buffer_size = buffer_size
         self.type_vector = type_vector
         self.gamma = gamma 
+        self.seed = seed
         self.warm_up_step = warm_up_step
         self.observation_normalize = observation_normalize
 
@@ -185,7 +186,8 @@ class OffPolicyAlgorithm:
         self.vec_env = get_vec_env(env= env,
                                    num_envs= num_envs,
                                    type_vector= type_vector,
-                                   observation_normalize= observation_normalize, 
+                                   observation_normalize= observation_normalize,
+                                   seed= self.seed
                                    )
 
         # replay buffer 
@@ -212,7 +214,7 @@ class OffPolicyAlgorithm:
 
             for step in range(timesteps):
                 warm_up_count += 1 
-                obs , _ = self.vec_env.reset()
+                obs , _ = self.vec_env.reset(seed = [self.seed + i for i in range(self.num_envs)])
                 obs_tensor = torch.tensor(obs, dtype = torch.float32).to(self.device)
                 action  = self.select_action(obs_tensor)
 
