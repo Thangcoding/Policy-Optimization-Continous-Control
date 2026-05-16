@@ -29,7 +29,6 @@ class Critic(nn.Module):
             nn.Linear(hidden, hidden), 
             nn.Tanh(), 
             nn.Linear(hidden, 1), 
-            nn.Tanh(), 
         )
 
     def forward(self, obs: torch.tensor, action: torch.tensor):

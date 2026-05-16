@@ -206,17 +206,17 @@ class OffPolicyAlgorithm:
 
     def learn(self, timesteps = 200, episodes = 10):
         render_ratio = max(int(episodes/10),1)
-        warm_up_count = 0 
+        warm_up_count = 1
         for ep in range(episodes):
             total_critic_loss = 0 
             total_actor_loss = 0 
             total_return = 0 
 
             for step in range(timesteps):
-                warm_up_count += 1 
                 obs , _ = self.vec_env.reset(seed = [self.seed + i for i in range(self.num_envs)])
                 obs_tensor = torch.tensor(obs, dtype = torch.float32).to(self.device)
-                action  = self.select_action(obs_tensor)
+                action  = self.select_action(obs = obs_tensor,
+                                            step = warm_up_count)
 
                 next_obs, reward, terminated , truncated, _ = self.vec_env.step(action)
 
@@ -231,6 +231,7 @@ class OffPolicyAlgorithm:
 
                 # warmup 
                 if warm_up_count < self.warm_up_step:
+                    warm_up_count += 1 
                     continue  
                 
                 critic_loss , actor_loss = self.train(step)

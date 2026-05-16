@@ -82,17 +82,24 @@ class DDPG(OffPolicyAlgorithm):
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(),lr = self.critic_lr)
 
     def select_action(self,obs: torch.tensor,
+                        step: int, 
                         noise_std: float = 0.1,
                         deterministic: bool = False):
         
+        if step < self.warm_up_step and not deterministic:
+            action = np.array([self.vec_env.single_action_space.sample() for _ in range(self.num_envs)])
+            return action
+
         obs = obs.unsqueeze(0)
         with torch.no_grad(): 
             action = self.actor(obs).cpu().numpy()[0]
 
         # exploration noise 
         if not deterministic:
-            action += np.random.normal(0, noise_std, size = action.shape)
-
+            noise= np.random.normal(0, noise_std, size = action.shape)
+    
+            action = action + noise
+    
         return np.clip(action,-1,1)
 
     def train(self, step ):
@@ -112,13 +119,14 @@ class DDPG(OffPolicyAlgorithm):
             next_action = self.target_actor(next_obs)
             target_q = self.target_critic(next_obs, next_action)
             y = reward + self.gamma*target_q*(1 - done) 
-
+         
         curr_q = self.critic(obs, action)
         critic_loss = F.mse_loss(y, curr_q)
 
         # optimize critic 
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
+        nn.utils.clip_grad_norm_(self.critic.parameters(), 0.5)
         self.critic_optimizer.step()
 
         #=================================================
@@ -128,6 +136,7 @@ class DDPG(OffPolicyAlgorithm):
         
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
+        nn.utils.clip_grad_norm_(self.actor.parameters(),0.5)
         self.actor_optimizer.step()
 
         #  update target network 
@@ -170,7 +179,8 @@ class DDPG(OffPolicyAlgorithm):
             )
 
             action = self.select_action(
-                obs_tensor,
+                obs = obs_tensor,
+                step = i,
                 deterministic=True
             )
 
@@ -202,4 +212,4 @@ if __name__ == '__main__':
                 observation_normalize= True
             )
 
-    model.learn(episodes = 1, timesteps= 300)
+    model.learn(episodes = 1, timesteps= 30)
