@@ -235,7 +235,7 @@ class OffPolicyAlgorithm:
                 # warmup 
                 if warm_up_count < self.warm_up_step:
                     warm_up_count += 1 
-                    
+
                 if len(self.replay_buffer) >= self.batch_size:
                     critic_loss , actor_loss = self.train(step)
 
@@ -261,7 +261,7 @@ class OffPolicyAlgorithm:
                    'eval_return': total_return.item()/10}
             
             # render evaluation 
-            if episodes % render_ratio and self.logger.use_wandb:
+            if (episodes % render_ratio == 0) and self.logger.use_wandb:
                 frames, _ = self.eval(render = True,
                                       stats_observation = stats_observation)
                 self.logger.log_video(frames)
