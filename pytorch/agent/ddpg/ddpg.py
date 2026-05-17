@@ -28,6 +28,7 @@ class DDPG(OffPolicyAlgorithm):
                  observation_normalize: bool = False, 
                  use_wandb: bool = False, 
                  ):
+        
         super().__init__(env, 
                          num_envs, 
                          buffer_size, 
@@ -52,6 +53,7 @@ class DDPG(OffPolicyAlgorithm):
         self.buffer_size = buffer_size
         self.type_vector = type_vector
 
+        set_seed(seed)
         self.set_model()
 
     def set_model(self):
@@ -70,11 +72,11 @@ class DDPG(OffPolicyAlgorithm):
         self.target_actor = Actor(obs_dim= obs_dim, 
                                   action_dim= action_dim,
                                   hidden= self.hidden).to(self.device)
-        
+
         self.target_critic = Critic(obs_dim= obs_dim,
                                     action_dim= action_dim,
                                     hidden= self.hidden).to(self.device)
-        
+
         self.target_actor.load_state_dict(self.actor.state_dict())
         self.target_critic.load_state_dict(self.critic.state_dict())
 
@@ -90,15 +92,14 @@ class DDPG(OffPolicyAlgorithm):
         if  warm_up and step < self.warm_up_step and not deterministic:
             action = np.array([self.vec_env.single_action_space.sample() for _ in range(self.num_envs)])
             return action
-
-        obs = obs.unsqueeze(0)
+        
         with torch.no_grad(): 
-            action = self.actor(obs).cpu().numpy()[0]
-
+            action = self.actor(obs).cpu().numpy()
+    
         # exploration noise 
         if not deterministic:
             noise= np.random.normal(0, noise_std, size = action.shape)
-    
+
             action = action + noise
     
         return np.clip(action,-1,1)
@@ -120,7 +121,7 @@ class DDPG(OffPolicyAlgorithm):
             next_action = self.target_actor(next_obs)
             target_q = self.target_critic(next_obs, next_action)
             y = reward + self.gamma*target_q*(1 - done) 
-         
+
         curr_q = self.critic(obs, action)
         critic_loss = F.mse_loss(y, curr_q)
 
@@ -131,10 +132,10 @@ class DDPG(OffPolicyAlgorithm):
         self.critic_optimizer.step()
 
         #=================================================
-        # actor update 
+        # actor update                                    
         #=================================================
         actor_loss = -self.critic(obs, self.actor(obs)).mean()
-        
+
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
         nn.utils.clip_grad_norm_(self.actor.parameters(),0.5)

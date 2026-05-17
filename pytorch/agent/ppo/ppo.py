@@ -88,8 +88,8 @@ class PPO(OnPolicyAlgorithm):
         total_policy_loss = 0 
         total_value_loss = 0 
         total_entropy = 0 
-        n_batches = 0 
-        mean_advantage , std_advantage = 0, 0 
+        n_batches = 0                          
+        mean_advantage , std_advantage = 0, 0   
 
         for batch in self.rollout_buffer.batch_data(batch_size= self.batch_size):
             obs = batch['obs']                    
