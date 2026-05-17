@@ -143,7 +143,10 @@ class TD3(OffPolicyAlgorithm):
             noise = torch.normal(0, std  = self.target_policy_noise, size = next_action.shape)
             noise = torch.clamp(noise, -self.target_noise_clip, self.target_noise_clip)
 
-            next_action_noise = torch.clamp(next_action + noise, self.vec_env.single_action_space.low , self.vec_env.single_action_space.high)
+            low_action = torch.as_tensor(self.vec_env.single_action_space.low,dtype = torch.float32)
+            high_action = torch.as_tensor(self.vec_env.single_action_space.high,dtype = torch.float32)
+
+            next_action_noise = torch.clamp(next_action + noise, low_action , high_action)
             value_1 , value_2 = self.critic_1(next_obs, next_action_noise) , self.critic_2(next_obs, next_action_noise)
             y =  reward + self.gamma *  torch.min(value_1, value_2)*(1 - done)
 
