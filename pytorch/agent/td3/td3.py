@@ -1,5 +1,6 @@
 import numpy as np 
-import torch 
+import torch
+import torch.nn as nn
 import torch.nn.functional as F 
 import gymnasium as gym 
 from ...env.vectorize_env import get_vec_env
@@ -23,7 +24,7 @@ class TD3(OffPolicyAlgorithm):
                  target_policy_noise: float = 0.2, 
                  target_noise_clip: float = 0.5,
                  type_vector: str = 'Sync', 
-                 max_step_eval: int = 1000,
+                 max_step_eval: int = 1000, 
                  gamma: float = 0.99, 
                  tau: float = 0.005, 
                  observation_normalize: bool = False,
@@ -31,11 +32,11 @@ class TD3(OffPolicyAlgorithm):
                  seed: int = 64, 
                  use_wandb: bool = False,
                  ): 
-        
-        super().__init__(env, 
-                         num_envs,
-                         buffer_size,
-                         batch_size, 
+
+        super().__init__(env,         
+                         num_envs,    
+                         buffer_size, 
+                         batch_size,  
                          type_vector,
                          gamma,
                          use_wandb,
@@ -43,6 +44,7 @@ class TD3(OffPolicyAlgorithm):
                          observation_normalize, 
                          seed,
                          device)
+        
         self.tau = tau 
         self.gamma = gamma 
         self.env = env 
@@ -88,13 +90,13 @@ class TD3(OffPolicyAlgorithm):
                                   hidden= self.hidden,
                                   max_action= max_action).to(self.device)
 
-        self.critic_target_1 = Critic(obs_dim=obs_dim,
-                                      action_dim=action_dim,
-                                      hidden= self.hidden).to(self.device)
+        self.critic_target_1 = Critic(obs_dim = obs_dim,
+                                      action_dim = action_dim,
+                                      hidden = self.hidden).to(self.device)
 
-        self.critic_target_2 = Critic(obs_dim=obs_dim,
-                                      action_dim=action_dim,
-                                      hidden= self.hidden).to(self.device)
+        self.critic_target_2 = Critic(obs_dim = obs_dim,
+                                      action_dim = action_dim,
+                                      hidden = self.hidden).to(self.device)
 
         self.actor_target.load_state_dict(self.actor.state_dict())
         self.critic_target_1.load_state_dict(self.critic_1.state_dict())
@@ -102,7 +104,8 @@ class TD3(OffPolicyAlgorithm):
 
         # optimizer 
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr = self.actor_lr)
-        self.critic_optimizer = torch.optim.Adam(self.critic_1.parameters(), lr = self.critic_lr)
+        self.critic_optimizer_1 = torch.optim.Adam(self.critic_1.parameters(), lr = self.critic_lr)
+        self.critic_optimizer_2 = torch.optim.Adam(self.critic_2.parameters(), lr = self.critic_lr)
 
     def select_action(self,obs: torch.tensor,
                         step: int, 
@@ -125,7 +128,7 @@ class TD3(OffPolicyAlgorithm):
     
         return np.clip(action,self.vec_env.single_action_space.low, self.vec_env.single_action_space.high)
 
-    def train(self, step_update ):
+    def train(self, step_update):
         sample = self.replay_buffer.sample(batch_size=self.batch_size)
         obs, action, reward, next_obs, done = sample['obs'], sample['action'], sample['reward'], sample['next_obs'], sample['done']
 
@@ -150,12 +153,17 @@ class TD3(OffPolicyAlgorithm):
         critic_loss_1 = F.mse_loss(y, curr_q_1)
         critic_loss_2 = F.mse_loss(y, curr_q_2)
 
-        critic_loss = critic_loss_1 + critic_loss_2
+        # optimize critic 1 
+        self.critic_optimizer_1.zero_grad()
+        critic_loss_1.backward()
+        nn.utils.clip_grad_norm_(self.critic_1.parameters(), 0.5)
+        self.critic_optimizer_1.step()
 
-        # optimize critic 
-        self.critic_optimizer.zero_grad()
-        critic_loss.backward()
-        self.critic_optimizer.step()
+        # optimize critic 2 
+        self.critic_optimizer_2.zero_grad()
+        critic_loss_2.backward()
+        nn.utils.clip_grad_norm_(self.critic_2.parameters(), 0.5)
+        self.critic_optimizer_2.step()
 
         #======================================
         # Delayed actor update 
@@ -164,6 +172,7 @@ class TD3(OffPolicyAlgorithm):
         if step_update % self.policy_delay == 0:
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
+            nn.utils.clip_grad_norm_(self.actor.parameters(), 0.5)
             self.actor_optimizer.step()
 
             # update target network 
@@ -171,7 +180,7 @@ class TD3(OffPolicyAlgorithm):
             self.soft_update(self.critic_1,self.critic_target_1)
             self.soft_update(self.critic_2,self.critic_target_2)
         
-        return critic_loss.item(), actor_loss.item()
+        return critic_loss_1.item() + critic_loss_2.item(), -actor_loss.item()
 
     def soft_update(self, net, target_net):
         for param, target_param in zip(net.parameters(), target_net.parameters()):
