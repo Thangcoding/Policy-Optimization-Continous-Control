@@ -162,6 +162,7 @@ class OffPolicyAlgorithm:
     def __init__(self, env: gym.Env,
                 num_envs: int,
                 buffer_size: int,
+                batch_size: int, 
                 type_vector: str,
                 gamma: float,
                 use_wandb: bool,
@@ -178,6 +179,7 @@ class OffPolicyAlgorithm:
         self.seed = seed
         self.warm_up_step = warm_up_step
         self.observation_normalize = observation_normalize
+        self.batch_size = batch_size
 
         self.device = device 
         self.logger = Logger(use_wandb= use_wandb)   
@@ -211,9 +213,9 @@ class OffPolicyAlgorithm:
             total_critic_loss = 0 
             total_actor_loss = 0 
             total_return = 0 
-
+            obs , _ = self.vec_env.reset(seed = [self.seed + i for i in range(self.num_envs)])
             for step in range(timesteps):
-                obs , _ = self.vec_env.reset(seed = [self.seed + i for i in range(self.num_envs)])
+    
                 obs_tensor = torch.tensor(obs, dtype = torch.float32).to(self.device)
                 action  = self.select_action(obs = obs_tensor,
                                             step = warm_up_count,
@@ -233,11 +235,12 @@ class OffPolicyAlgorithm:
                 # warmup 
                 if warm_up_count < self.warm_up_step:
                     warm_up_count += 1 
-                
-                critic_loss , actor_loss = self.train(step)
+                    
+                if len(self.replay_buffer) >= self.batch_size:
+                    critic_loss , actor_loss = self.train(step)
 
-                total_actor_loss += actor_loss 
-                total_critic_loss += critic_loss 
+                    total_actor_loss += actor_loss 
+                    total_critic_loss += critic_loss 
 
             if self.observation_normalize:
                 stats_observation = {

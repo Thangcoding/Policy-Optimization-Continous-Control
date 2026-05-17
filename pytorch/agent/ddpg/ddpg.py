@@ -31,7 +31,8 @@ class DDPG(OffPolicyAlgorithm):
         
         super().__init__(env, 
                          num_envs, 
-                         buffer_size, 
+                         buffer_size,
+                         batch_size,
                          type_vector,
                          gamma,
                          use_wandb,
@@ -118,10 +119,11 @@ class DDPG(OffPolicyAlgorithm):
         # critic update TD 
         # (r + gamma*Q_target(s', mu(s')) - Q_curr(s, mu(s)))^2 
         #=================================================
-
+    
         with torch.no_grad(): 
             next_action = self.target_actor(next_obs)
             target_q = self.target_critic(next_obs, next_action)
+        
             y = reward + self.gamma*target_q*(1 - done) 
 
         curr_q = self.critic(obs, action)
@@ -147,7 +149,7 @@ class DDPG(OffPolicyAlgorithm):
         self.soft_update(self.actor, self.target_actor)
         self.soft_update(self.critic, self.target_critic)
 
-        return critic_loss.item(), actor_loss.item()
+        return critic_loss.item(), -actor_loss.item()
 
     def soft_update(self, net, target_net):
         for param, target_param in zip(net.parameters(), target_net.parameters()):

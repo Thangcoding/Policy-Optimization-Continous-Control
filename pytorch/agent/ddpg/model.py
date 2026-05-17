@@ -6,13 +6,19 @@ class Actor(nn.Module):
     def __init__(self, obs_dim , action_dim,max_action = 1, hidden = 256):
         super().__init__()
 
-        self.max_action = torch.tensor(max_action, dtype = torch.float32)
+        self.register_buffer(
+            "max_action",
+            torch.as_tensor(
+                max_action,
+                dtype=torch.float32
+            )
+        )
 
         self.net = nn.Sequential(
             nn.Linear(obs_dim, hidden), 
-            nn.Tanh(), 
+            nn.ReLU(), 
             nn.Linear(hidden,hidden), 
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Linear(hidden, action_dim), 
             nn.Tanh(),
         )
@@ -27,9 +33,9 @@ class Critic(nn.Module):
         
         self.net = nn.Sequential( 
             nn.Linear(obs_dim + action_dim,hidden), 
-            nn.Tanh(),
+            nn.ReLU(),
             nn.Linear(hidden, hidden), 
-            nn.Tanh(), 
+            nn.ReLU(), 
             nn.Linear(hidden, 1), 
         )
 

@@ -26,8 +26,6 @@ class ReplayBuffer:
             self.action_dim = self.action_space.shape[0]
         elif isinstance(self.action_space,spaces.Discrete):
             self.action_dim = 1
-        elif isinstance(self.action_space,spaces.MultiDiscrete):
-            self.action_dim = len(self.action_space.nvec)
         else:
             raise NotImplementedError("Unsupported action space")
         
