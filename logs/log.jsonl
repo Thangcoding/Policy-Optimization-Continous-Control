@@ -499,3 +499,4 @@
 {"actor_loss": 0.2806479314963023, "critic_loss": 68.03895975748698, "eval_return": -1829.970802052891, "episode": 0}
 {"actor_loss": -0.28048135141531627, "critic_loss": 65.67024370829265, "eval_return": -1829.665923790009, "episode": 0}
 {"actor_loss": -0.28048135141531627, "critic_loss": 65.67024370829265, "eval_return": -1829.665923790009, "episode": 0}
+{"actor_loss": -0.28047821919123334, "critic_loss": 61.77873229980469, "eval_return": -1829.652607863764, "episode": 0}

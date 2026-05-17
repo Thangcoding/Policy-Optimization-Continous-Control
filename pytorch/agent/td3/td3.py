@@ -116,16 +116,16 @@ class TD3(OffPolicyAlgorithm):
         if  warm_up and step < self.warm_up_step and not deterministic:
             action = np.array([self.vec_env.single_action_space.sample() for _ in range(self.num_envs)])
             return action
-        
+
         with torch.no_grad(): 
             action = self.actor(obs).cpu().numpy()
-    
+
         # exploration noise 
         if not deterministic:
             noise= np.random.normal(0, noise_std, size = action.shape)
 
             action = action + noise
-    
+
         return np.clip(action,self.vec_env.single_action_space.low, self.vec_env.single_action_space.high)
 
     def train(self, step_update):
@@ -143,15 +143,20 @@ class TD3(OffPolicyAlgorithm):
             noise = torch.normal(0, std  = self.target_policy_noise, size = next_action.shape)
             noise = torch.clamp(noise, -self.target_noise_clip, self.target_noise_clip)
 
-            low_action = torch.as_tensor(self.vec_env.single_action_space.low,dtype = torch.float32)
-            high_action = torch.as_tensor(self.vec_env.single_action_space.high,dtype = torch.float32)
+            low_action = torch.as_tensor(self.vec_env.single_action_space.low,
+                                        dtype = torch.float32, 
+                                        device = self.device)
+            
+            high_action = torch.as_tensor(self.vec_env.single_action_space.high,
+                                        dtype = torch.float32,
+                                        device = self.device)
 
             next_action_noise = torch.clamp(next_action + noise, low_action , high_action)
-            value_1 , value_2 = self.critic_1(next_obs, next_action_noise) , self.critic_2(next_obs, next_action_noise)
-            y =  reward + self.gamma *  torch.min(value_1, value_2)*(1 - done)
+            value_1 , value_2 = self.critic_target_1(next_obs, next_action_noise) , self.critic_target_2(next_obs, next_action_noise)
+            y =  reward + self.gamma*torch.min(value_1, value_2)*(1 - done)
 
-        curr_q_1 = self.critic_1(obs, action)
-        curr_q_2 = self.critic_2(obs,action)
+        curr_q_1 = self.critic_1(obs, action) 
+        curr_q_2 = self.critic_2(obs,action)  
 
         critic_loss_1 = F.mse_loss(y, curr_q_1)
         critic_loss_2 = F.mse_loss(y, curr_q_2)
