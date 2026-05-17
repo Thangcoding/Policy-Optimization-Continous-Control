@@ -62,6 +62,7 @@ class DDPG(OffPolicyAlgorithm):
 
         self.actor = Actor(obs_dim = obs_dim,
                            action_dim= action_dim,
+                           max_action= self.vec_env.single_action_space.high,
                            hidden= self.hidden).to(self.device)
         
         self.critic = Critic(obs_dim= obs_dim, 
@@ -71,6 +72,7 @@ class DDPG(OffPolicyAlgorithm):
         # target actor critic 
         self.target_actor = Actor(obs_dim= obs_dim, 
                                   action_dim= action_dim,
+                                  max_action= self.vec_env.single_action_space.high,
                                   hidden= self.hidden).to(self.device)
 
         self.target_critic = Critic(obs_dim= obs_dim,
@@ -102,9 +104,9 @@ class DDPG(OffPolicyAlgorithm):
 
             action = action + noise
     
-        return np.clip(action,-1,1)
+        return np.clip(action,self.vec_env.single_action_space.low, self.vec_env.single_action_space.high)
 
-    def train(self, step ):
+    def train(self, step):
         
         self.actor.train()
         self.critic.train()
@@ -199,7 +201,7 @@ class DDPG(OffPolicyAlgorithm):
         return frames, return_val
 
 if __name__ == '__main__':
-    env = gym.make("Hopper-v5")
+    env = gym.make("Pendulum-v1")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = DDPG(env=env,

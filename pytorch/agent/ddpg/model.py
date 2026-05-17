@@ -3,8 +3,10 @@ import torch.nn as nn
 
 class Actor(nn.Module): 
 
-    def __init__(self, obs_dim , action_dim, hidden = 256):
+    def __init__(self, obs_dim , action_dim,max_action = 1, hidden = 256):
         super().__init__()
+
+        self.max_action = torch.tensor(max_action, dtype = torch.float32)
 
         self.net = nn.Sequential(
             nn.Linear(obs_dim, hidden), 
@@ -16,7 +18,7 @@ class Actor(nn.Module):
         )
 
     def forward(self, obs: torch.tensor):   
-        return self.net(obs)
+        return self.max_action*self.net(obs)
 
 class Critic(nn.Module):
 

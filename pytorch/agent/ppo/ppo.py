@@ -94,10 +94,10 @@ class PPO(OnPolicyAlgorithm):
         for batch in self.rollout_buffer.batch_data(batch_size= self.batch_size):
             obs = batch['obs']                    
             action = batch["action"]              
-            advantage_value = batch['advantage']   
+            advantage_value = batch['advantage']  
             return_value = batch['return']        
-            log_prob_old = batch['log_prob']
-            value_old = batch['value']
+            log_prob_old = batch['log_prob']      
+            value_old = batch['value']             
 
             if self.advantage_normalize:
                 # normalize advantage value 
