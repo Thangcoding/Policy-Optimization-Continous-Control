@@ -140,7 +140,7 @@ class TD3(OffPolicyAlgorithm):
 
         with torch.no_grad():
             next_action = self.actor_target(next_obs)
-            noise = torch.normal(0, std  = self.target_policy_noise, size = next_action.shape)
+            noise = torch.randn_like(next_action) * self.target_policy_noise
             noise = torch.clamp(noise, -self.target_noise_clip, self.target_noise_clip)
 
             low_action = torch.as_tensor(self.vec_env.single_action_space.low,
@@ -234,9 +234,9 @@ class TD3(OffPolicyAlgorithm):
 
             return_val += reward
             # hoặc gamma**i * reward
-
-            if terminated or truncated:
+            if terminated[0] or truncated[0]:
                 break
+
 
         eval_env.close()
 
