@@ -1,5 +1,6 @@
 import numpy as np 
 import torch 
+import torch.nn as nn 
 import torch.nn.functional as F 
 import gymnasium as gym 
 from ...env.vectorize_env import get_vec_env
@@ -13,6 +14,7 @@ class SAC(OffPolicyAlgorithm):
     def __init__(self,env : gym.Env, 
                  num_envs: int,
                  device: torch.device,
+                 hidden: int = 256, 
                  num_critics: int = 2,
                  batch_size: int = 64, 
                  actor_lr : float = 1e-4, 
@@ -22,6 +24,7 @@ class SAC(OffPolicyAlgorithm):
                  buffer_size: int = 100000,
                  type_vector: str = 'Sync', 
                  max_step_eval: int = 1000,
+                 clip_grad_val: float = 0.5, 
                  tau: float = 0.005,  
                  gamma: float = 0.99, 
                  warm_up_step: int = 300, 
@@ -30,9 +33,11 @@ class SAC(OffPolicyAlgorithm):
                  auto_entropy: bool = True, 
                  use_wandb: bool = False
                  ):
+
         super().__init__(env, 
                          num_envs, 
                          buffer_size, 
+                         batch_size,
                          type_vector,
                          gamma,
                          use_wandb,
@@ -49,6 +54,8 @@ class SAC(OffPolicyAlgorithm):
         self.batch_size = batch_size 
         self.alpha = alpha 
         self.tau = tau 
+        self.hidden = hidden
+        self.clip_grad_val = clip_grad_val 
         self.max_step_eval = max_step_eval
 
         self.auto_entropy = auto_entropy
@@ -58,17 +65,27 @@ class SAC(OffPolicyAlgorithm):
     def set_model(self):
         obs_dim = self.vec_env.single_observation_space.shape[0]
         action_dim = self.vec_env.single_action_space.shape[0]
+        max_action = self.vec_env.single_action_space.high 
+        min_action = self.vec_env.single_action_space.low 
         self.target_entropy = -action_dim
 
         self.actor = Actor(obs_dim=obs_dim,
-                           action_dim= action_dim).to(self.device)
+                           hidden= self.hidden, 
+                           action_dim= action_dim, 
+                           max_action = max_action, 
+                           min_action= min_action).to(self.device)
 
         self.lst_critic = []
         self.lst_critic_target = []
 
         for _ in range(self.num_critics):
-            critic = Critic(obs_dim=obs_dim, action_dim= action_dim).to(self.device)
-            critic_target = Critic(obs_dim=obs_dim, action_dim= action_dim).to(self.device)
+            critic = Critic(obs_dim=obs_dim,
+                            hidden= self.hidden,
+                            action_dim= action_dim).to(self.device)
+
+            critic_target = Critic(obs_dim = obs_dim,
+                                   hidden = self.hidden, 
+                                   action_dim= action_dim).to(self.device)
 
             critic_target.load_state_dict(critic.state_dict())
             self.lst_critic.append(critic)
@@ -85,11 +102,21 @@ class SAC(OffPolicyAlgorithm):
             self.log_alpha = torch.zeros(1, requires_grad = True, device = self.device)
             self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr = self.alpha_lr)
 
-    def select_action(self, obs: torch.tensor, deterministic: bool = False):
-        with torch.no_grad():
-            action,_ = self.actor.sample_action(obs, deterministic)
-        return action.cpu().numpy()
-        
+    def select_action(self,obs: torch.tensor,
+                        step: int,
+                        deterministic: bool = False,
+                        warm_up : bool = False):
+
+        if  warm_up and step < self.warm_up_step and not deterministic:
+            action = np.array([self.vec_env.single_action_space.sample() for _ in range(self.num_envs)])
+            return action
+
+        with torch.no_grad(): 
+            action, _ = self.actor.sample_action(obs, deterministic_bool = deterministic)
+            action = action.cpu().numpy()
+
+        return action
+
     def train(self, step):
         sample = self.replay_buffer.sample(batch_size= self.batch_size)
 
@@ -97,33 +124,33 @@ class SAC(OffPolicyAlgorithm):
 
         #================================
         # critic update 
+        #   y = r_(s_t, a_t) + γ[min_{i=1}^{N} Q_target_i(st+1,at+1) - αlog πθ(at+1|st+1)]
         #================================ 
-
+        alpha = self.log_alpha.exp() if self.auto_entropy else self.alpha
         with torch.no_grad():
             next_action, next_log_prob = self.actor.sample_action(next_obs)
-
-            q_next_list = [critic_target(next_obs, next_action) for critic_target in self.lst_critic_target]
-
-            min_q_next =  torch.min(torch.stack(q_next_list),dim = 0)[0]
             
-            y = reward + self.gamma*(min_q_next - self.alpha*next_log_prob)*(1 - done)
+            q_next_list = [critic_target(next_obs, next_action) for critic_target in self.lst_critic_target]
+            
+            min_q_next =  torch.min(torch.stack(q_next_list),dim = 0)[0]
+        
+            y = reward + self.gamma*(min_q_next - alpha*next_log_prob)*(1 - done)
 
         q_curr_list = [critic(obs, action) for critic in self.lst_critic]
-        
-        critic_loss = 0
-        for q in q_curr_list:
-            critic_loss += F.mse_loss(q, y)
-
-        critic_loss /= self.num_critics
+ 
+        critic_loss = sum( F.mse_loss(q, y) for q in q_curr_list)
 
         for opt in self.lst_critic_optimizer:
             opt.zero_grad()
         
         critic_loss.backward()
 
-        for opt in self.lst_critic_optimizer:
+        for i, opt in enumerate(self.lst_critic_optimizer):
+            nn.utils.clip_grad_norm_(self.lst_critic[i].parameters(), self.clip_grad_val)
             opt.step()
-    
+            # soft update for target critic 
+            self.soft_update(self.lst_critic[i], self.lst_critic_target[i])
+
         #===================
         # Actor Update 
         #===================
@@ -133,12 +160,12 @@ class SAC(OffPolicyAlgorithm):
         q_new_list = [critic(obs, new_action) for critic in self.lst_critic]
 
         min_q_new = torch.min(torch.stack(q_new_list), dim = 0)[0]
-        alpha = self.log_alpha.exp() if self.auto_entropy else self.alpha
 
-        actor_loss = (alpha * log_prob -min_q_new).mean()
+        actor_loss = (alpha * log_prob - min_q_new).mean()
 
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
+        nn.utils.clip_grad_norm_(self.actor.parameters(), self.clip_grad_val)
         self.actor_optimizer.step()
 
         #=====================
@@ -151,9 +178,6 @@ class SAC(OffPolicyAlgorithm):
             self.alpha_optimizer.zero_grad()
             alpha_loss.backward()
             self.alpha_optimizer.step()
-
-        for i in range(self.num_critics):
-            self.soft_update(self.lst_critic[i], self.lst_critic_target[i])
         
         return critic_loss.item() , actor_loss.item()
         
@@ -163,7 +187,7 @@ class SAC(OffPolicyAlgorithm):
                 self.tau * param.data + (1 - self.tau)*target_param.data
         )
     
-    def eval(self, render = False, stats_observation = None ):
+    def eval(self, render = False, stats_observation = None):
             
         eval_env = get_vec_env(env= self.env,
                             num_envs= 1,
@@ -175,7 +199,7 @@ class SAC(OffPolicyAlgorithm):
         eval_env.training_mode = False 
 
         frames = []
-        obs, _ = eval_env.reset()
+        obs, _ = eval_env.reset(seed = self.seed)
 
         return_val = 0.0
 
@@ -193,6 +217,7 @@ class SAC(OffPolicyAlgorithm):
 
             action = self.select_action(
                 obs_tensor,
+                step = i, 
                 deterministic=True
             )
 
@@ -220,8 +245,9 @@ if __name__ == '__main__':
                 actor_lr = 1e-4, 
                 critic_lr = 1e-3, 
                 alpha = 0.2, 
+                warm_up_step= 20, 
                 buffer_size = 100000,
                 type_vector = 'Sync')
     
-    model.learn(episodes = 10)
+    model.learn(episodes = 1, timesteps= 258)
 

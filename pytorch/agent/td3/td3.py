@@ -188,7 +188,7 @@ class TD3(OffPolicyAlgorithm):
             self.soft_update(self.critic_1,self.critic_target_1)
             self.soft_update(self.critic_2,self.critic_target_2)
         
-        return critic_loss_1.item() + critic_loss_2.item(), -actor_loss.item()
+        return (critic_loss_1.item() + critic_loss_2.item())/2, -actor_loss.item()
 
     def soft_update(self, net, target_net):
         for param, target_param in zip(net.parameters(), target_net.parameters()):

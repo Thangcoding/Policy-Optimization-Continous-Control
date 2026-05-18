@@ -504,3 +504,10 @@
 {"actor_loss": -0.28047821919123334, "critic_loss": 61.77873229980469, "eval_return": -1829.652607863764, "episode": 0}
 {"actor_loss": -0.28047821919123334, "critic_loss": 61.77873229980469, "eval_return": -1829.652607863764, "episode": 0}
 {"actor_loss": -0.28047821919123334, "critic_loss": 61.77873229980469, "eval_return": -1829.652607863764, "episode": 0}
+{"actor_loss": 8.058915149495006, "critic_loss": 4.059547145068645, "eval_return": -1578.1464105628168, "episode": 0}
+{"actor_loss": 14.606516709327698, "critic_loss": 0.22401778679341078, "eval_return": -1688.37405974083, "episode": 1}
+{"actor_loss": 21.037493476867677, "critic_loss": 0.2015501431375742, "eval_return": -1718.0653410754064, "episode": 2}
+{"actor_loss": 27.828723707199096, "critic_loss": 0.18391743179410697, "eval_return": -1622.5833443734498, "episode": 3}
+{"actor_loss": 34.77473461151123, "critic_loss": 0.23091507073491813, "eval_return": -1739.5263217668592, "episode": 4}
+{"actor_loss": -3.4323007404342176, "critic_loss": 0.16967878549886767, "eval_return": 66.61781281357487, "episode": 0}
+{"actor_loss": -4.859313656193342, "critic_loss": 1.359589773208596, "eval_return": 42.55169854965489, "episode": 0}
