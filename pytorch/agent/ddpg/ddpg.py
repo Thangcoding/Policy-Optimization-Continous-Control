@@ -61,9 +61,12 @@ class DDPG(OffPolicyAlgorithm):
         obs_dim = self.vec_env.single_observation_space.shape[0]
         action_dim = self.vec_env.single_action_space.shape[0]
         max_action = self.vec_env.single_action_space.high
+        min_action = self.vec_env.single_action_space.low 
+
         self.actor = Actor(obs_dim = obs_dim,
                            action_dim= action_dim,
                            max_action= max_action,
+                           min_action= min_action,
                            hidden= self.hidden).to(self.device)
         
         self.critic = Critic(obs_dim= obs_dim, 
@@ -74,6 +77,7 @@ class DDPG(OffPolicyAlgorithm):
         self.target_actor = Actor(obs_dim= obs_dim, 
                                   action_dim= action_dim,
                                   max_action= max_action,
+                                  min_action= min_action, 
                                   hidden= self.hidden).to(self.device)
 
         self.target_critic = Critic(obs_dim= obs_dim,

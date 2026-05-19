@@ -22,7 +22,7 @@ class SharedPPO(OnPolicyAlgorithm):
             learning_rate: float = 1e-5, 
             gamma: float = 0.99,       
             gae_lambda:float = 0.95,   
-            ent_coef: float = 0.5,    
+            ent_coef: float = 0.01,    
             vf_coef: float = 0.5,     
             epsilon: float = 0.2,     
             clip_value: float = 0.2,  
@@ -61,10 +61,10 @@ class SharedPPO(OnPolicyAlgorithm):
     
     def set_model(self):
         
-        self.agent = ActorCritic(self.feature_network,
-                                        self.vec_env.single_observation_space,
-                                        self.vec_env.single_action_space,
-                                        self.feature_dim).to(self.device)
+        self.agent = ActorCritic(feature_network = self.feature_network,
+                                observation_space= self.vec_env.single_observation_space,
+                                action_space= self.vec_env.single_action_space,
+                                feature_dim= self.feature_dim).to(self.device)
 
         # optimizer 
         self.optimizer = torch.optim.Adam(self.agent.parameters(),lr = self.learning_rate)
@@ -207,7 +207,8 @@ if __name__ == '__main__':
                 gamma = 0.99,
                 gae_lambda = 0.95,
                 use_wandb= False ,
-                advantage_normalize=True
+                advantage_normalize=True, 
+                observation_normalize= True, 
                 )
     
     model.learn(episodes= 10, epochs= 5)

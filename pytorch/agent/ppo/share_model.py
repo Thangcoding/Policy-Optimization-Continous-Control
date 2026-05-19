@@ -8,19 +8,45 @@ from torch.distributions import Normal, Categorical
 
 
 class ContinuousPolicyHead(nn.Module):
-    """
-    action with hard clip [-1,1]
-    """
-
     def __init__(
         self,                       
         feature_dim: int,           
-        action_dim: int,            
+        action_dim: int, 
+        max_action: int, 
+        min_action: int,            
         log_std_init: float = -0.5, 
     ):
+        '''
+                
+        - Scale action with action range [l, h]:
+
+                            scale = (h - l) / 2 ,  bias = (h + l) / 2  
+
+        - Action clipped and using change of variable to compute accurately log_prob:
+                                                z ~ N(μ,σ)
+                                                a = scale*tanh(z) + bias  
+                                            p(a) = p(z) |dz/da|
+                                        log(p(a)) = log(p(z)) - log(|da/dz|)
+                                                = log(p(z)) - log(1 - tanh^{2}(z)) - log(scale) 
+                                            
+        '''
         super().__init__()
 
-        self.action_dim = action_dim
+        self.register_buffer(
+                    "action_scale",
+                    torch.as_tensor(
+                        (max_action - min_action) / 2,
+                        dtype=torch.float32
+                    )
+                )
+
+        self.register_buffer(
+            "action_bias", 
+            torch.as_tensor(
+                (max_action + min_action) / 2, 
+                dtype = torch.float32
+            )
+        )
 
         # Mean network
         self.mean = nn.Linear(feature_dim, action_dim)
@@ -44,8 +70,8 @@ class ContinuousPolicyHead(nn.Module):
 
         return mean, std
 
-    def get_dist(self, features):
-        mean, std = self.forward(features)
+    def get_dist(self, obs_features):
+        mean, std = self.forward(obs_features)
         return Normal(mean, std)
 
     def sample_action(self, obs_features,
@@ -58,12 +84,15 @@ class ContinuousPolicyHead(nn.Module):
             raw_action = dist.sample()
 
         # bounded action 
-        action = torch.tanh(raw_action)
+        tanh_action = torch.tanh(raw_action)
+
+        # scale action
+        action = self.action_scale*tanh_action + self.action_bias
 
         # change of variable 
         log_prob = dist.log_prob(raw_action).sum(dim = -1)
 
-        log_prob = log_prob - torch.sum(torch.log(1 - action.pow(2) + 1e-6), dim = -1)
+        log_prob = log_prob - torch.sum(torch.log(self.action_scale*(1 - tanh_action.pow(2)) + 1e-6), dim = -1)
 
         return action, log_prob
 
@@ -71,13 +100,14 @@ class ContinuousPolicyHead(nn.Module):
         dist = self.get_dist(obs_features)
 
         # raw action 
-        action = torch.clamp(action, -1 + 1e-6, 1 - 1e-6)
-        raw_action = torch.atanh(action)
+        tanh_action = (action - self.action_bias) / self.action_scale 
+        tanh_action = torch.clamp(tanh_action, -1 + 1e-6, 1 - 1e-6)
+        raw_action = torch.atanh(tanh_action)
 
         # inverse change of variable 
         log_prob = dist.log_prob(raw_action).sum(dim = -1)
 
-        correction = torch.sum(torch.log(1 - action.pow(2) + 1e-6),dim = -1)
+        correction = torch.sum(torch.log(self.action_scale*(1 - tanh_action.pow(2)) + 1e-6),dim = -1)
 
         log_prob = log_prob - correction
 
@@ -134,7 +164,7 @@ class DiscretePolicyHead(nn.Module):
             entropy = entropy.sum(dim = -1)
         return entropy
 
-class ValueNetwork(nn.Module):
+class CriticHead(nn.Module):
 
     def __init__(self, feature_dim: int = 512):
         super().__init__()
@@ -169,12 +199,17 @@ class ActorCritic(nn.Module):
             self.policy = DiscretePolicyHead(action_dim= action_dim, feature_dim=feature_dim)
         elif isinstance(action_space, spaces.Box):
             # Box action
+            max_action = action_space.high 
+            min_action = action_space.low 
             action_dim = action_space.shape[0]
-            self.policy = ContinuousPolicyHead(action_dim = action_dim, feature_dim= feature_dim)
+            self.policy = ContinuousPolicyHead(action_dim = action_dim,
+                                                feature_dim= feature_dim,
+                                                max_action= max_action,
+                                                min_action= min_action)
         else:
             raise NotImplementedError("Unsupported action space")
 
-        self.critic = ValueNetwork(feature_dim)
+        self.critic = CriticHead(feature_dim)
 
         if isinstance(feature_network, str):
             if feature_network == 'MLP':
@@ -188,6 +223,7 @@ class ActorCritic(nn.Module):
     
     def evaluate_action(self, obs : torch.Tensor, action: torch.Tensor) -> tuple:
         # evaluation action 
+
         obs_features = self.network(obs)
         log_prob  = self.policy.get_log_prob(obs_features,action)
         entropy = self.policy.get_entropy(obs_features)

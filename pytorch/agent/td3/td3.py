@@ -70,11 +70,13 @@ class TD3(OffPolicyAlgorithm):
         obs_dim = self.vec_env.single_observation_space.shape[0]
         action_dim = self.vec_env.single_action_space.shape[0]
         max_action = self.vec_env.single_action_space.high
+        min_action = self.vec_env.single_action_space.low
 
         self.actor = Actor(obs_dim= obs_dim,
                            action_dim= action_dim,
                            hidden= self.hidden,
-                           max_action= max_action).to(self.device)
+                           max_action= max_action, 
+                           min_action=  min_action).to(self.device)
 
         self.critic_1 = Critic(obs_dim= obs_dim,
                                action_dim= action_dim,
@@ -88,7 +90,8 @@ class TD3(OffPolicyAlgorithm):
         self.actor_target = Actor(obs_dim= obs_dim,
                                   action_dim=action_dim,
                                   hidden= self.hidden,
-                                  max_action= max_action).to(self.device)
+                                  max_action= max_action,
+                                  min_action= min_action).to(self.device)
 
         self.critic_target_1 = Critic(obs_dim = obs_dim,
                                       action_dim = action_dim,

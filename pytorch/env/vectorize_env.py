@@ -7,7 +7,7 @@ from .normalize import NormalizeObservation
 def get_vec_env(env: gym.Env,
                 num_envs: int = 4, 
                 type_vector: str = "Async", 
-                observation_normalize: bool = True, 
+                observation_normalize: bool = False, 
                 stats_observation = None, 
                 render: bool = False, 
                 seed : int = 64
@@ -39,7 +39,8 @@ def get_vec_env(env: gym.Env,
         vector = SyncVectorEnv(env_fns) 
     
     if observation_normalize:
-        vec_env = NormalizeObservation(vector, stats_observation)
+        vec_env = NormalizeObservation(vector,
+                                    stats_observation = stats_observation)
     else:
         vec_env = vector
     

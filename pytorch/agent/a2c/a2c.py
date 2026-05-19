@@ -21,7 +21,7 @@ class A2C(OnPolicyAlgorithm):
                 learning_rate: float = 1e-5, 
                 gamma: float = 0.99,       
                 gae_lambda:float = 0.95,   
-                ent_coef: float = 0.5,
+                ent_coef: float = 0.0,
                 vf_coef: float = 0.5,
                 batch_size: int = 64,
                 seed: int = 64, 
@@ -56,10 +56,11 @@ class A2C(OnPolicyAlgorithm):
     
     def set_model(self):
         # setup_model 
-        self.agent = ActorCritic(self.feature_network,
-                                       self.vec_env.single_observation_space,
-                                       self.vec_env.single_action_space,
-                                       self.feature_dim).to(self.device)
+
+        self.agent = ActorCritic(feature_network = self.feature_network,
+                                observation_space= self.vec_env.single_observation_space,
+                                action_space = self.vec_env.single_action_space,
+                                feature_dim= self.feature_dim).to(self.device)
         
         # optimizer 
         self.optimizer = torch.optim.Adam(self.agent.parameters(),lr = self.learning_rate)
@@ -189,17 +190,17 @@ if __name__ == '__main__':
         def forward(self, obs: torch.tensor):
             return self.net(obs)
         
-    net = feature_extract(observation_space= env.observation_space, feature_dim= 128)
+    net = feature_extract(observation_space= env.observation_space, feature_dim= 64)
 
     model = A2C(env = env,
                 num_envs=4,
                 feature_network=net,
-                feature_dim=128,
+                feature_dim=64,
                 device= device,
                 batch_size= 64,
-                n_rollout_steps=50,
+                n_rollout_steps= 50,
                 type_vector='Sync',
-                learning_rate= 1e-5,
+                learning_rate= 5e-5,
                 gamma = 0.99,
                 gae_lambda = 0.95,
                 advantage_normalize= True, 
@@ -207,4 +208,4 @@ if __name__ == '__main__':
                 use_wandb=False
                 )
     
-    model.learn(episodes= 20, epochs =1 )
+    model.learn(episodes= 200, epochs =5)

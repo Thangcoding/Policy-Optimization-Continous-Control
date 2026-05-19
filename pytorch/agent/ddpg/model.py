@@ -3,14 +3,22 @@ import torch.nn as nn
 
 class Actor(nn.Module): 
 
-    def __init__(self, obs_dim , action_dim,max_action = 1, hidden = 256):
+    def __init__(self, obs_dim , action_dim,max_action, min_action, hidden = 256):
         super().__init__()
 
         self.register_buffer(
-            "max_action",
+            "action_scale",
             torch.as_tensor(
-                max_action,
+                (max_action - min_action) /2,
                 dtype=torch.float32
+            )
+        )
+
+        self.register_buffer(
+            "action_bias", 
+            torch.as_tensor(
+                (max_action + min_action)/2, 
+                dtype = torch.float32, 
             )
         )
 
@@ -24,7 +32,7 @@ class Actor(nn.Module):
         )
 
     def forward(self, obs: torch.tensor):   
-        return self.max_action*self.net(obs)
+        return self.action_scale*self.net(obs) + self.action_bias
 
 class Critic(nn.Module):
 

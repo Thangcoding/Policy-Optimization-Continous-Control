@@ -12,15 +12,18 @@ class Actor(nn.Module):
                  hidden = 256,
                  ):
         '''
-        Action clipped and using change of variable to compute accurately log_prob
+                    
+            - Scale action with action range [l, h]:
 
-                                                z ~ N(μ,σ)
-                                                a = scale*tanh(z) + bias  
-                                            p(a) = p(z) |dz/da|
-                                        log(p(a)) = log(p(z)) - log(|da/dz|)
-                                                = log(p(z)) - log(1 - tanh^{2}(z)) - log(scale) 
-                                            
-        
+                                scale = (h - l) / 2 ,  bias = (h + l) / 2  
+
+            - Action clipped and using change of variable to compute accurately log_prob:
+                                                    z ~ N(μ,σ)
+                                                    a = scale*tanh(z) + bias  
+                                                p(a) = p(z) |dz/da|
+                                            log(p(a)) = log(p(z)) - log(|da/dz|)
+                                                    = log(p(z)) - log(1 - tanh^{2}(z)) - log(scale) 
+                                                
         '''
 
         super().__init__()  
@@ -94,7 +97,7 @@ class Actor(nn.Module):
         tanh_action = torch.clamp(tanh_action , -1 + 1e-6, 1 - 1e-6)
         raw_action = torch.atanh(tanh_action)
 
-        # inverse change of variable 
+        # change of variable 
         log_prob = dist.log_prob(raw_action).sum(dim = -1)
 
         correction = torch.sum(torch.log(self.action_scale*(1 - tanh_action.pow(2)) + 1e-6),dim = -1)

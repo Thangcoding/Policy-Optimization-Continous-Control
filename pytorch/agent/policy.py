@@ -61,7 +61,7 @@ class OnPolicyAlgorithm:
 
         for _ in range(self.n_rollout_steps):
             obs_tensor = torch.tensor(obs, dtype=torch.float32).to(self.device)
-
+            
             with torch.no_grad():
                 action, log_prob , value = self.predict(obs_tensor)
 

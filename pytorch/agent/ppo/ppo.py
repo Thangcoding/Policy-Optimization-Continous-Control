@@ -60,10 +60,14 @@ class PPO(OnPolicyAlgorithm):
     def set_model(self):
         obs_dim = self.vec_env.single_observation_space.shape[0]
         action_dim = self.vec_env.single_action_space.shape[0]
+        max_action = self.vec_env.single_action_space.high 
+        min_action = self.vec_env.single_action_space.low 
 
         self.actor = Actor(obs_dim= obs_dim, 
                            action_dim= action_dim,
-                           hidden= self.feature_dim).to(self.device)
+                           hidden= self.feature_dim, 
+                           min_action= min_action,
+                           max_action= max_action).to(self.device)
         
         self.critic = Critic(obs_dim=obs_dim,
                              action_dim= action_dim,
