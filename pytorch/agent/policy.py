@@ -261,7 +261,8 @@ class OffPolicyAlgorithm:
                    'eval_return': total_return.item()/10}
             
             # render evaluation 
-            if (episodes % render_ratio == 0) and self.logger.use_wandb:
+            if (ep % render_ratio == 0) :
+                print(render_ratio)
                 frames, _ = self.eval(render = True,
                                       stats_observation = stats_observation)
                 self.logger.log_video(frames)
