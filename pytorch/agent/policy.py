@@ -99,7 +99,7 @@ class OnPolicyAlgorithm:
         raise NotImplementedError
 
     def learn(self,timesteps = 1000000 , epochs: int = 1):
-        render_ratio = max(int(timesteps/100),1)
+        render_ratio = max(int(timesteps/1000),1)
         
         while self.step < timesteps:
             self.collect_rollouts()
@@ -211,7 +211,7 @@ class OffPolicyAlgorithm:
         raise NotImplementedError
 
     def learn(self, timesteps = 1000000):
-        render_ratio = max(int(timesteps/10),1)
+        render_ratio = max(int(timesteps/1000),1)
         obs , _ = self.vec_env.reset(seed = [self.seed + i for i in range(self.num_envs)])
 
         for step in range(timesteps):
