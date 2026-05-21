@@ -260,7 +260,7 @@ class OffPolicyAlgorithm:
                     'eval_return': total_return.item()/10}
 
                 # render evaluation 
-                if self.use_wandb:
+                if self.use_wandb and (step % 10000 == 0):
                     frames, _ = self.eval(render = True,
                                         stats_observation = stats_observation)
                     self.logger.log_video(frames)
