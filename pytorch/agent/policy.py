@@ -212,7 +212,7 @@ class OffPolicyAlgorithm:
 
     def learn(self, timesteps = 1000000):
         obs , _ = self.vec_env.reset(seed = [self.seed + i for i in range(self.num_envs)])
-
+        count = 0 
         for step in range(timesteps):
             self.step = step
             total_critic_loss = 0 
@@ -238,7 +238,9 @@ class OffPolicyAlgorithm:
 
                 total_actor_loss += actor_loss 
                 total_critic_loss += critic_loss 
-            if (step % 1000 == 0 ) or (step == timesteps -1):
+                count += 1
+
+            if ((step % 1000 == 0) and (count > 0)) or (step == timesteps - 1) or (step == 0):
                 if self.observation_normalize:
                     stats_observation = {
                         'mean': self.vec_env.mean, 
@@ -249,13 +251,13 @@ class OffPolicyAlgorithm:
                     stats_observation = None 
 
                 # evaluation
-                for _ in range(20):
+                for _ in range(10):
                     frames, return_val = self.eval(stats_observation = stats_observation)
                     total_return += return_val 
 
-                logs = {'actor_loss': total_actor_loss/timesteps,
-                    'critic_loss': total_critic_loss/timesteps, 
-                    'eval_return': total_return.item()/20}
+                logs = {'actor_loss': total_actor_loss/max(count,1),
+                    'critic_loss': total_critic_loss/max(count,1), 
+                    'eval_return': total_return.item()/10}
 
                 # render evaluation 
                 if self.use_wandb:
