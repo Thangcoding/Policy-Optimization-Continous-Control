@@ -211,7 +211,6 @@ class OffPolicyAlgorithm:
         raise NotImplementedError
 
     def learn(self, timesteps = 1000000):
-        render_ratio = max(int(timesteps/1000),1)
         obs , _ = self.vec_env.reset(seed = [self.seed + i for i in range(self.num_envs)])
 
         for step in range(timesteps):
@@ -239,33 +238,33 @@ class OffPolicyAlgorithm:
 
                 total_actor_loss += actor_loss 
                 total_critic_loss += critic_loss 
+            if (step % 1000 == 0 ) or (step == timesteps -1):
+                if self.observation_normalize:
+                    stats_observation = {
+                        'mean': self.vec_env.mean, 
+                        'var': self.vec_env.var, 
+                        'count': self.vec_env.count 
+                    }
+                else:
+                    stats_observation = None 
 
-            if self.observation_normalize:
-                stats_observation = {
-                    'mean': self.vec_env.mean, 
-                    'var': self.vec_env.var, 
-                    'count': self.vec_env.count 
-                }
-            else:
-                stats_observation = None 
+                # evaluation
+                for _ in range(20):
+                    frames, return_val = self.eval(stats_observation = stats_observation)
+                    total_return += return_val 
 
-            # evaluation
-            for _ in range(10):
-                frames, return_val = self.eval(stats_observation = stats_observation)
-                total_return += return_val 
+                logs = {'actor_loss': total_actor_loss/timesteps,
+                    'critic_loss': total_critic_loss/timesteps, 
+                    'eval_return': total_return.item()/20}
 
-            logs = {'actor_loss': total_actor_loss/timesteps,
-                   'critic_loss': total_critic_loss/timesteps, 
-                   'eval_return': total_return.item()/10}
+                # render evaluation 
+                if self.use_wandb:
+                    frames, _ = self.eval(render = True,
+                                        stats_observation = stats_observation)
+                    self.logger.log_video(frames)
 
-            # render evaluation 
-            if (step % render_ratio == 0) and (self.use_wandb) :
-                frames, _ = self.eval(render = True,
-                                      stats_observation = stats_observation)
-                self.logger.log_video(frames)
-
-            self.logger.set_step(step)
-            self.logger.log(logs)
+                self.logger.set_step(step)
+                self.logger.log(logs)
 
     def eval(self):
         raise NotImplementedError
