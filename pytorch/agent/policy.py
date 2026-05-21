@@ -45,6 +45,7 @@ class OnPolicyAlgorithm:
                                             observation_space = self.vec_env.single_observation_space, 
                                             action_space = self.vec_env.single_action_space, 
                                             device = device)
+        self.step = 0 
     
     def set_model(self):
         raise NotImplementedError
@@ -97,11 +98,12 @@ class OnPolicyAlgorithm:
     def train(self):
         raise NotImplementedError
 
-    def learn(self,episodes = 100 , epochs: int = 1):
-        render_ratio = max(int(episodes/10),1)
-
-        for ep in range(episodes):
+    def learn(self,timesteps = 1000000 , epochs: int = 1):
+        render_ratio = max(int(timesteps/100),1)
+        
+        while self.step < timesteps:
             self.collect_rollouts()
+            self.step += self.n_rollout_steps
 
             policy_loss , value_loss , entropy , avd_mean, avd_std = 0, 0, 0, 0, 0
 
@@ -128,8 +130,8 @@ class OnPolicyAlgorithm:
                 _, return_val = self.eval(stats_observation = stats_observation)
                 total_return += return_val 
 
-            self.logger.set_step(ep)
-            if (ep % render_ratio == 0 ) and self.logger.use_wandb:
+            self.logger.set_step(self.step)
+            if (self.step % render_ratio == 0 ) and self.logger.use_wandb:
                 frames, _  = self.eval(render = True, stats_observation = stats_observation)
                 self.logger.log_video(frames)
 
@@ -137,7 +139,7 @@ class OnPolicyAlgorithm:
             logs = {"policy_loss": policy_loss / epochs,
                     "value_loss": value_loss / epochs, 
                     "entropy": entropy / epochs,
-                    "avg_return": total_return.item() / 10,
+                    "eval_return": total_return.item() / 10,
                     "avd_mean": avd_mean / epochs,
                     "avd_std": avd_std / epochs}
 
@@ -177,6 +179,7 @@ class OffPolicyAlgorithm:
         self.type_vector = type_vector
         self.gamma = gamma 
         self.seed = seed
+        self.use_wandb = use_wandb
         self.warm_up_step = warm_up_step
         self.observation_normalize = observation_normalize
         self.batch_size = batch_size
@@ -198,6 +201,7 @@ class OffPolicyAlgorithm:
                                           observation_space= self.vec_env.single_observation_space,
                                           action_space= self.vec_env.single_action_space, 
                                           device= self.device)
+        self.step = 0 
            
 
     def set_model(self):
@@ -206,41 +210,35 @@ class OffPolicyAlgorithm:
     def train(self):
         raise NotImplementedError
 
-    def learn(self, timesteps = 200, episodes = 10):
-        render_ratio = max(int(episodes/10),1)
-        warm_up_count = 1
-        for ep in range(episodes):
+    def learn(self, timesteps = 1000000):
+        render_ratio = max(int(timesteps/10),1)
+        obs , _ = self.vec_env.reset(seed = [self.seed + i for i in range(self.num_envs)])
+
+        for step in range(timesteps):
+            self.step = step
             total_critic_loss = 0 
             total_actor_loss = 0 
             total_return = 0 
-            obs , _ = self.vec_env.reset(seed = [self.seed + i for i in range(self.num_envs)])
-            for step in range(timesteps):
-    
-                obs_tensor = torch.tensor(obs, dtype = torch.float32).to(self.device)
-                action  = self.select_action(obs = obs_tensor,
-                                            step = warm_up_count,
-                                            warm_up = True)
 
-                next_obs, reward, terminated , truncated, _ = self.vec_env.step(action)
+            obs_tensor = torch.tensor(obs, dtype = torch.float32).to(self.device)
+            action  = self.select_action(obs = obs_tensor,
+                                        warm_up = True)
 
+            next_obs, reward, terminated , truncated, _ = self.vec_env.step(action)
 
-                self.replay_buffer.add(obs = obs,       
-                                    next_obs= next_obs, 
-                                    action=action,      
-                                    reward=reward,      
-                                    done = terminated)  
+            self.replay_buffer.add(obs = obs,       
+                                next_obs= next_obs, 
+                                action=action,      
+                                reward=reward,      
+                                done = terminated)  
 
-                obs = next_obs 
+            obs = next_obs 
 
-                # warmup 
-                if warm_up_count < self.warm_up_step:
-                    warm_up_count += 1 
+            if len(self.replay_buffer) >= self.batch_size:
+                critic_loss , actor_loss = self.train()
 
-                if len(self.replay_buffer) >= self.batch_size:
-                    critic_loss , actor_loss = self.train(step)
-
-                    total_actor_loss += actor_loss 
-                    total_critic_loss += critic_loss 
+                total_actor_loss += actor_loss 
+                total_critic_loss += critic_loss 
 
             if self.observation_normalize:
                 stats_observation = {
@@ -259,15 +257,14 @@ class OffPolicyAlgorithm:
             logs = {'actor_loss': total_actor_loss/timesteps,
                    'critic_loss': total_critic_loss/timesteps, 
                    'eval_return': total_return.item()/10}
-            
+
             # render evaluation 
-            if (ep % render_ratio == 0) :
-                print(render_ratio)
+            if (step % render_ratio == 0) and (self.use_wandb) :
                 frames, _ = self.eval(render = True,
                                       stats_observation = stats_observation)
                 self.logger.log_video(frames)
-            
-            self.logger.set_step(ep)
+
+            self.logger.set_step(step)
             self.logger.log(logs)
 
     def eval(self):

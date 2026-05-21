@@ -201,7 +201,7 @@ if __name__ == '__main__':
                 feature_network= 'MLP',
                 feature_dim=128,
                 device= device,
-                n_rollout_steps=50,
+                n_rollout_steps= 256,
                 type_vector='Sync',
                 learning_rate= 1e-5,
                 gamma = 0.99,
@@ -211,7 +211,7 @@ if __name__ == '__main__':
                 observation_normalize= True, 
                 )
     
-    model.learn(episodes= 10, epochs= 5)
+    model.learn(timesteps= 1000, epochs= 5)
 
 
 

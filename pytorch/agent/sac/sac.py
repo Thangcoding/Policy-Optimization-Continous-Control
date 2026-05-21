@@ -103,11 +103,10 @@ class SAC(OffPolicyAlgorithm):
             self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr = self.alpha_lr)
 
     def select_action(self,obs: torch.tensor,
-                        step: int,
                         deterministic: bool = False,
                         warm_up : bool = False):
 
-        if  warm_up and step < self.warm_up_step and not deterministic:
+        if  warm_up and self.step < self.warm_up_step and not deterministic:
             action = np.array([self.vec_env.single_action_space.sample() for _ in range(self.num_envs)])
             return action
 
@@ -117,7 +116,7 @@ class SAC(OffPolicyAlgorithm):
 
         return action
 
-    def train(self, step):
+    def train(self):
         sample = self.replay_buffer.sample(batch_size= self.batch_size)
 
         obs , action, reward , next_obs, done = sample['obs'], sample['action'], sample['reward'], sample['next_obs'], sample['done']
@@ -216,8 +215,7 @@ class SAC(OffPolicyAlgorithm):
             )
 
             action = self.select_action(
-                obs_tensor,
-                step = i, 
+                obs = obs_tensor,
                 deterministic=True
             )
 
@@ -249,5 +247,5 @@ if __name__ == '__main__':
                 buffer_size = 100000,
                 type_vector = 'Sync')
     
-    model.learn(episodes = 1, timesteps= 258)
+    model.learn(timesteps= 1000)
 

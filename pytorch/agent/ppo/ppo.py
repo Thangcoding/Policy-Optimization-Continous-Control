@@ -231,4 +231,4 @@ if __name__ == '__main__':
                 observation_normalize= True,
                 )
     
-    model.learn(episodes= 40, epochs= 10)
+    model.learn(timesteps= 1000, epochs= 5)

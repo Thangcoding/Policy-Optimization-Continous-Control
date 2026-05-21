@@ -208,4 +208,4 @@ if __name__ == '__main__':
                 use_wandb=False
                 )
     
-    model.learn(episodes= 200, epochs =5)
+    model.learn(timesteps = 1000, epochs =5)

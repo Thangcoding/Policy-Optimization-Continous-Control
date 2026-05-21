@@ -91,12 +91,12 @@ class DDPG(OffPolicyAlgorithm):
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(),lr = self.critic_lr)
 
     def select_action(self,obs: torch.tensor,
-                        step: int, 
+                       
                         noise_std: float = 0.1,
                         deterministic: bool = False,
                         warm_up : bool = False):
         
-        if  warm_up and step < self.warm_up_step and not deterministic:
+        if  warm_up and self.step < self.warm_up_step and not deterministic:
             action = np.array([self.vec_env.single_action_space.sample() for _ in range(self.num_envs)])
             return action
         
@@ -111,7 +111,7 @@ class DDPG(OffPolicyAlgorithm):
     
         return np.clip(action,self.vec_env.single_action_space.low, self.vec_env.single_action_space.high)
 
-    def train(self, step):
+    def train(self):
         
         self.actor.train()
         self.critic.train()
@@ -190,7 +190,7 @@ class DDPG(OffPolicyAlgorithm):
 
             action = self.select_action(
                 obs = obs_tensor,
-                step = i,
+    
                 deterministic=True
             )
 
@@ -222,4 +222,4 @@ if __name__ == '__main__':
                 observation_normalize= True
             )
 
-    model.learn(episodes = 1, timesteps= 30)
+    model.learn(timesteps= 1000)

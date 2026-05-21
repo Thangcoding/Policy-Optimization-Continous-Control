@@ -15,7 +15,7 @@ class TD3(OffPolicyAlgorithm):
     def __init__(self,env: gym.Env, 
                  num_envs: int, 
                  device: torch.device,  
-                 hidden: int = 256, 
+                 hidden: int = 256,  
                  batch_size: int = 64,  
                  actor_lr: float = 1e-4,
                  critic_lr: float = 1e-3, 
@@ -111,12 +111,11 @@ class TD3(OffPolicyAlgorithm):
         self.critic_optimizer_2 = torch.optim.Adam(self.critic_2.parameters(), lr = self.critic_lr)
 
     def select_action(self,obs: torch.tensor,
-                        step: int, 
                         noise_std: float = 0.1,
                         deterministic: bool = False,
                         warm_up : bool = False):
         
-        if  warm_up and step < self.warm_up_step and not deterministic:
+        if  warm_up and self.step < self.warm_up_step and not deterministic:
             action = np.array([self.vec_env.single_action_space.sample() for _ in range(self.num_envs)])
             return action
 
@@ -131,7 +130,7 @@ class TD3(OffPolicyAlgorithm):
 
         return np.clip(action,self.vec_env.single_action_space.low, self.vec_env.single_action_space.high)
 
-    def train(self, step_update):
+    def train(self):
         sample = self.replay_buffer.sample(batch_size=self.batch_size)
         obs, action, reward, next_obs, done = sample['obs'], sample['action'], sample['reward'], sample['next_obs'], sample['done']
 
@@ -180,7 +179,7 @@ class TD3(OffPolicyAlgorithm):
         # Delayed actor update 
         #======================================
         actor_loss = -self.critic_1(obs, self.actor(obs)).mean()
-        if step_update % self.policy_delay == 0:
+        if self.step % self.policy_delay == 0:
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
             nn.utils.clip_grad_norm_(self.actor.parameters(), 0.5)
@@ -229,7 +228,6 @@ class TD3(OffPolicyAlgorithm):
 
             action = self.select_action(
                 obs = obs_tensor,
-                step = i, 
                 deterministic=True
             )
 
@@ -239,7 +237,6 @@ class TD3(OffPolicyAlgorithm):
             # hoặc gamma**i * reward
             if terminated[0] or truncated[0]:
                 break
-
 
         eval_env.close()
 
@@ -261,4 +258,4 @@ if __name__ == '__main__':
                 observation_normalize= True
             )
 
-    model.learn(episodes = 100, timesteps= 30)
+    model.learn( timesteps= 1000)
