@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F 
 import gymnasium as gym 
+from gymnasium import spaces 
 from ...env.vectorize_env import get_vec_env
 from ...utils.seed import set_seed
 from ...utils.feature_extractor import BaseFeatureExtractor
@@ -68,9 +69,12 @@ class TD3(OffPolicyAlgorithm):
     
     def set_model(self):
         obs_dim = self.vec_env.single_observation_space.shape[0]
-        action_dim = self.vec_env.single_action_space.shape[0]
-        max_action = self.vec_env.single_action_space.high
-        min_action = self.vec_env.single_action_space.low
+        if isinstance(self.vec_env.single_action_space, spaces.Box):
+            action_dim = self.vec_env.single_action_space.shape[0]
+            max_action = self.vec_env.single_action_space.high 
+            min_action = self.vec_env.single_action_space.low 
+        else:
+            raise NotImplementedError("Unsupported action space")
 
         self.actor = Actor(obs_dim= obs_dim,
                            action_dim= action_dim,
