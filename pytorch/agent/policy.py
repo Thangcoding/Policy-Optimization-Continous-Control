@@ -133,7 +133,7 @@ class OnPolicyAlgorithm:
             
             # log store 
             logs = {"policy_loss": policy_loss / epochs,
-                    "value_loss": value_loss / epochs, 
+                    "critic_loss": value_loss / epochs, 
                     "entropy": entropy / epochs,
                     "eval_return": total_return.item() / 10,
                     "avd_mean": avd_mean / epochs,
