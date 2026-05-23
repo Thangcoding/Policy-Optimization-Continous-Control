@@ -130,10 +130,7 @@ class OnPolicyAlgorithm:
                 total_return += return_val 
 
             self.logger.set_step(self.step)
-            if ((self.step % (self.n_rollout_steps*10) == 0) or self.step == 0 ) and self.logger.use_wandb:
-                frames, _  = self.eval(render = True, stats_observation = stats_observation)
-                self.logger.log_video(frames)
-
+            
             # log store 
             logs = {"policy_loss": policy_loss / epochs,
                     "value_loss": value_loss / epochs, 
@@ -141,8 +138,14 @@ class OnPolicyAlgorithm:
                     "eval_return": total_return.item() / 10,
                     "avd_mean": avd_mean / epochs,
                     "avd_std": avd_std / epochs}
+            if self.step % (self.n_rollout_steps*5) == 0:
+                self.logger.log(logs)
+            
+            if ((self.step % (self.n_rollout_steps*10) == 0) or self.step == 0 ) and self.logger.use_wandb:
+                frames, _  = self.eval(render = True, stats_observation = stats_observation)
+                self.logger.log_video(frames)
 
-            self.logger.log(logs)
+    
 
             self.step += self.n_rollout_steps
 
