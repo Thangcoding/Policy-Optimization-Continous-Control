@@ -103,7 +103,6 @@ class OnPolicyAlgorithm:
         
         while self.step < timesteps:
             self.collect_rollouts()
-            self.step += self.n_rollout_steps
 
             policy_loss , value_loss , entropy , avd_mean, avd_std = 0, 0, 0, 0, 0
 
@@ -131,7 +130,7 @@ class OnPolicyAlgorithm:
                 total_return += return_val 
 
             self.logger.set_step(self.step)
-            if (self.step % render_ratio == 0 ) and self.logger.use_wandb:
+            if ((self.step % (self.n_rollout_steps*10) == 0) or self.step == 0 ) and self.logger.use_wandb:
                 frames, _  = self.eval(render = True, stats_observation = stats_observation)
                 self.logger.log_video(frames)
 
@@ -144,6 +143,8 @@ class OnPolicyAlgorithm:
                     "avd_std": avd_std / epochs}
 
             self.logger.log(logs)
+
+            self.step += self.n_rollout_steps
 
     def save(self, path):
         torch.save({
